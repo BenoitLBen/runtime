@@ -1,0 +1,85 @@
+<html>
+<style type="text/css">
+.chart {
+	shape-rendering: crispEdges;
+}
+
+.mini text {
+	font: 9px sans-serif;	
+}
+
+.main text {
+	font: 12px sans-serif;	
+}
+
+.miniItem0 {
+	fill: darksalmon;
+	stroke-width: 6;	
+}
+
+.miniItem1 {
+	fill: darkolivegreen;
+	fill-opacity: .7;
+	stroke-width: 6;	
+}
+
+.miniItem2 {
+	fill: slategray;
+	fill-opacity: .7;
+	stroke-width: 6;	
+}
+
+.brush .extent {
+	stroke: gray;
+	fill: dodgerblue;
+	fill-opacity: .365;
+}
+.box {
+    background-color: #000;
+    color: #ffffff;
+    opacity: .8;
+    padding:10px;
+    box-shadow: rgba(0,0,0,0.2) 0px 2px 3px, inset rgba(0,0,0,0.2) 0px -1px 2px;
+    border-radius: 5px;
+    padding:10px;
+    font-family: Helvetica;
+    font-size: 14pt;
+}
+
+#file-selector-box {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+}
+</style>
+
+<body>
+<script type="text/javascript" src="../js/lib/d3.v3.min.js"></script>
+<script type="text/javascript" src="parse_timeline.js"></script>
+
+<div id="file-selector-box" class="box">
+	Fichier:
+    <input type="file" id="file-input"/>
+</div>
+
+<script>
+document.getElementById('file-input')
+	.addEventListener('change',
+    	function (e) {
+        	var file = e.target.files[0];
+        	if (!file) {
+          	return;
+        }
+        var reader = new FileReader();
+        reader.onload = function (e) {
+        	$('#file-selector-box').animate({opacity: 0}, 700,
+            	function() {$('#file-selector-box').hide()});
+          	var contents = e.target.result;
+          	var timeline = parseTimeline(contents);
+          	drawTimelineCanvas(timeline);
+        }
+        reader.readAsText(file);
+      }, false);
+</script>
+</body>
+</html>

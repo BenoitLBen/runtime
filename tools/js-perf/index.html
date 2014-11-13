@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style type="text/css">
+	.node {
+    cursor: pointer;
+  }
+
+  .node circle {
+    fill: #fff;
+    stroke: steelblue;
+    stroke-width: 1.5px;
+  }
+   
+  .node text {
+    font-size:10px; 
+    font-family:sans-serif; 
+    font-weight: bold;
+  }
+   
+  .link {
+    fill: none;
+    stroke: #ccc;
+    stroke-width: 1.5px;
+  }
+
+  .templink {
+    fill: none;
+    stroke: red;
+    stroke-width: 3px;
+  }
+
+  .box {
+    background-color: #000;
+    color: #ffffff;
+    opacity: .8;
+    padding:10px;
+    box-shadow: rgba(0,0,0,0.2) 0px 2px 3px, inset rgba(0,0,0,0.2) 0px -1px 2px;
+    border-radius: 5px;
+    padding:10px;
+    font-family: Helvetica;
+    font-size: 14pt;
+  }
+
+  #legend {
+    position: absolute;
+    left: 10px;
+    top: 40px;
+    opacity: .0;
+    display: none;
+    max-width: 30%;
+    min-width: 250px;
+  }
+
+  #report-selector-box {
+    position: absolute;
+    right: 10px;
+    top: 40px;
+    opacity: .0;
+    display: none;
+  }
+
+  #node-name {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 5px;
+    text-align: center;
+    border-radius: 0px;
+  }
+
+  #file-selector-box {
+    position: absolute;
+    left: 10px;
+    top: 40px;
+  }
+</style>
+
+<body>
+  <div id="node-name" class="box">Report Visualizer</div>
+  <div id="tree-container" style="float:left"></div>
+  <div id="legend" class="box">
+    <table style="font-size: 12pt">
+      <tr>
+        <td>Total Time (s)</td>
+        <td><b id="node-total-time"></b></td>
+      </tr>
+      <tr>
+        <td>Spent in children (s)</td>
+        <td><b id="node-children-time"></b><b> (</b><b id="node-children-percentage"></b><b>)</b></td>
+      </tr>
+      <tr>
+        <td>Of parent time</td>
+        <td><b id="node-parent-percentage"></b></td>
+      </tr>
+      <tr>
+        <td>Calls count</td>
+        <td><b id="node-calls-count"></b></td>
+      </tr>
+      <tr>
+        <td>Flops (/s)</td>
+        <td><b id="node-flops"></b></td>
+      </tr>
+      <tr>
+        <td>Bytes Received</td>
+        <td><b id="node-bytes-received"></b></td>
+      </tr>
+      <tr>
+        <td>Bytes Sent</b></td>
+        <td><b id="node-bytes-sent"></b></td>
+      </tr>
+      <tr>
+        <td>Communications (% of total)</td>
+        <td><b id="node-comm-time"></b></td>
+      </tr>
+    </table>
+  </div>
+  <div id="file-selector-box" class="box">
+    Fichier:
+    <input type="file" id="file-input"/>
+  </div>
+
+  <div id="report-selector-box" class="box">
+    Choix du rapport:
+    <select id="report-selector" onChange="Reports.selectReport()"></select>
+    <button onClick="PerfTree.toggleFirstLevel()">Hide/Show</button>
+  </div>
+
+  <script src="../js/lib/jquery-1.10.2.min.js"></script>
+  <script src="../js/lib/d3.v3.min.js"></script>
+  <script src="../js/draggable.js"></script>
+  <script src="parse_spido_perf_reports.js"></script>
+  <script src="tree.js"></script>
+
+  <script>
+    $('#legend').drags();
+  </script>
+</body>
+</html>

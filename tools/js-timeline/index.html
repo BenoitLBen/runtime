@@ -1,0 +1,102 @@
+<html>
+  <style type="text/css">
+   .chart {
+     shape-rendering: crispEdges;
+   }
+
+   .brush .extent {
+     stroke: gray;
+     fill: dodgerblue;
+     fill-opacity: .365;
+   }
+   .box {
+     background-color: #000;
+     color: #ffffff;
+     opacity: .8;
+     padding:10px;
+     box-shadow: rgba(0,0,0,0.2) 0px 2px 3px, inset rgba(0,0,0,0.2) 0px -1px 2px;
+     border-radius: 5px;
+     padding:10px;
+     font-family: Helvetica;
+     font-size: 14pt;
+   }
+
+   #file-selector-box {
+     position: absolute;
+     left: 10px;
+     top: 10px;
+   }
+
+   #legend {
+     position: absolute;
+     left: 10px;
+     top: 10px;
+     z-index: 10;
+     opacity: 0;
+     font-weight: bold;
+     display: none;
+   }
+
+   body { margin: 0; }
+   svg {
+     position: absolute;
+     top: 0;
+     left: 0;
+   }
+
+   .legend-table {
+     color: #ffffff;
+     font-family: Helvetica;
+     font-weight: bold;
+     font-size: 12pt;
+   }
+  </style>
+
+  <body>
+    <script type="text/javascript" src="../js/lib/d3.v3.min.js"></script>
+    <script type="text/javascript" src="../js/lib/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="parse_timeline.js"></script>
+    <script type="text/javascript" src="../js-hmat/parse_hmat_json.js"></script>
+    <script src="../js/draggable.js"></script>
+
+    <div id="file-selector-box" class="box">
+      File:
+      <input type="file" id="file-input"/>
+      <button onclick="openHmatrixWindow()">Open HMatrix Window</button>
+    </div>
+
+    <div id="legend" class="box">
+      <div id="task-name"></div>
+      <table class="legend-table">
+	<tr>
+	  <td style="font-weight: normal">Execution time</td>
+	  <td id="exec-time"></td>
+	</tr>
+      </table>
+    </div>
+
+    <script>
+     function openHmatrixWindow() {
+       hmatWindow = window.open("./hmat_window.html");
+     }
+     document.getElementById('file-input')
+       .addEventListener('change',
+         function (e) {
+           var file = e.target.files[0];
+           if (!file) {
+             return;
+	   }
+	   var reader = new FileReader();
+	   reader.onload = function (e) {
+             $('#file-selector-box').animate({opacity: 0}, 700,
+            				     function() {$('#file-selector-box').hide()});
+             var contents = e.target.result;
+             var timeline = parseTimeline(contents);
+             drawTimeline(timeline);
+	   }
+	   reader.readAsText(file);
+	 }, false);
+     $("#legend").drags();
+    </script>
+  </body>
+</html>
