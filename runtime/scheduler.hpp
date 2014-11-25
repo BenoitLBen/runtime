@@ -6,42 +6,6 @@
 #include "task.hpp"
 #include "common/data_recorder.hpp"
 
-/** Synchronized queue (FIFO) */
-template<typename T> class Queue {
-private:
-  std::deque<T> q;
-  std::mutex mutex;
-
-public:
-  /** Clear the queue.
-   */
-  void clear() {
-    std::lock_guard<std::mutex> guard(mutex);
-    q.clear();
-  }
-  /** Push a new value into the queue.
-   */
-  void push(T& value) {
-    std::lock_guard<std::mutex> guard(mutex);
-    q.push_back(value);
-  }
-  /** Try to get a value from the queue, return true for success.
-
-      \param value
-      \return true if a value is popped, false otherwise.
-   */
-  bool tryPop(T& value) {
-    std::lock_guard<std::mutex> guard(mutex);
-    if (q.empty()) {
-      return false;
-    }
-    value = q.front();
-    q.pop_front();
-    return true;
-  }
-};
-
-
 /** Generic Task scheduler.
 
     This class handles the scheduling of a set of available tasks. The tasks are
@@ -70,7 +34,8 @@ public:
  */
 class EagerScheduler : public Scheduler {
 private:
-  Queue<TaskPtr> q;
+  std::mutex mutex;
+  std::deque<TaskPtr> q;
 
 public:
   EagerScheduler(TimedDataRecorder<int>* recorder = NULL) : Scheduler(recorder) {}

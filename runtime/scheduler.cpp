@@ -1,20 +1,25 @@
 #include "scheduler.hpp"
 
 void EagerScheduler::clear() {
+  std::lock_guard<std::mutex> guard(mutex);
   q.clear();
   taskCount = 0;
 }
 
 void EagerScheduler::push(TaskPtr task) {
-  q.push(task);
+  std::lock_guard<std::mutex> guard(mutex);
+  q.push_back(task);
   taskCount++;
-  if (recorder) recorder->recordSynchronized(taskCount);
+  if (recorder) recorder->record(taskCount);
 }
 
 bool EagerScheduler::tryPop(TaskPtr& task) {
-  if (q.tryPop(task)) {
+  std::lock_guard<std::mutex> guard(mutex);
+  if (!q.empty()) {
+    task = q.front();
+    q.pop_front();
     taskCount--;
-    if (recorder) recorder->recordSynchronized(taskCount);
+    if (recorder) recorder->record(taskCount);
     return true;
   }
   return false;
