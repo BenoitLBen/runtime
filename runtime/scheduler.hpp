@@ -56,6 +56,7 @@ protected:
 public:
   Scheduler(TimedDataRecorder<int>* _recorder = NULL) : recorder(_recorder),
                                                         taskCount(0) {}
+  virtual ~Scheduler() {};
   /** Reset the scheduler. */
   virtual void clear() = 0;
   /** Push a task */

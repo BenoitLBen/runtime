@@ -51,10 +51,11 @@ public:
   Priority priority;
 
 public:
-  Task(std::string _name = "Task") : name(_name), index(-1),
+  Task(std::string _name = "Task") : index(-1),
                                      enclosingContext(trace::Node::currentReference()),
                                      doPostExecution(true), isCallback(false),
-                                     noPrefetch(false) {}
+                                     noPrefetch(false), name(_name), priority(NORMAL) {}
+  virtual ~Task() {}
 protected:
   virtual void call() = 0;
 };

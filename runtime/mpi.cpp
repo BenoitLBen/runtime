@@ -127,6 +127,7 @@ MpiRequestPool::processCompletedRequest(std::list<Request*>::iterator it) {
         //           << ", tag = " << r->d->tag << ")" << std::endl;
         int ierr = MPI_Irecv(r->ptr, (int) r->count, MPI_BYTE, r->from,
                              r->d->tag, MPI_COMM_WORLD, &r->req);
+        assert(!ierr);
         // Don't remove the query.
         // TODO: should we bump the iterator ? If we don't, this very query will
         // be tested right away.
@@ -222,7 +223,6 @@ void MpiRequestPool::pushDetachedRequest(Request* r) {
     break;
   case RECV:
     {
-      MpiRecvTask* t = (MpiRecvTask*) r->task;
       // std::cout << "RECV(" << ", from = " << r->from << ", tag = "
       //           << r->d->tag << ")" << std::endl;
       ierr = MPI_Irecv(&r->count, 1, MPI_UNSIGNED_LONG_LONG, r->from, r->d->tag,

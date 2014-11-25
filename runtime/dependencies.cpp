@@ -44,10 +44,11 @@ public:
 
 TaskScheduler::TaskScheduler() : dataAccess(), deps(), availableTasks(NULL),
                                  succ(), postTaskExecutionMutex(), tasksLeft(0),
-                                 totalTasks(0), callback(),
-                                 percentageFrequency(-1),
+                                 callback(), percentageFrequency(-1),
                                  nextTaskCountWakeup(0), conditionMutex(),
-                                 condition(), maxMemorySize(std::numeric_limits<size_t>::max()) {
+                                 condition(),
+                                 maxMemorySize(std::numeric_limits<size_t>::max()),
+                                 totalTasks(0) {
   // availableTasks = new EagerScheduler(&recorder);
   availableTasks = new PriorityScheduler(&recorder);
 }
@@ -271,7 +272,6 @@ void TaskScheduler::graphvizOutput(const char* filename) const {
                                  "deeppink", "darkslategray4",
                                  "darksalmon", "gray66", "lavender",
                                  "lightslateblue", "turquoise"};
-  int index = 0;
   f << "digraph tasks {\n";
   for (auto& dep : deps) {
     f << dep.first << " -> " << dep.second << ";\n";
@@ -401,7 +401,6 @@ void TaskScheduler::postTaskExecutionInternal(Task* task,
     std::lock_guard<std::mutex> guard(lruMutex);
     for (const auto& p : task->params) {
       Data* d = p.first;
-      AccessMode mode = p.second;
       if ((d->refCount == 0) && d->swappable) {
         lru.put(d);
       }

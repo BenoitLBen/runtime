@@ -1,3 +1,4 @@
+#include "config.h"
 #include "disk.hpp"
 
 #include <cstdio>
@@ -97,6 +98,7 @@ private:
             char* dirName = (char*) calloc(strlen(basedirName) + 10, 1);
             sprintf(dirName, "%s/%04d", basedirName, index / kFilesPerDir);
             int ierr = mkdir(dirName, S_IRWXU);
+            assert(!ierr);
             free(dirName);
           }
           char* filename = (char*) calloc(strlen(basedirName) + 30, 1);
@@ -134,6 +136,7 @@ public:
     // TODO: register alloc
     ssize_t size = d->pack(&ptr);
     size_t written = fwrite(ptr, 1, size, f);
+    assert(written == size);
     fclose(f);
     // TODO: register free
     free(ptr);

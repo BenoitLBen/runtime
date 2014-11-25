@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 #include <thread>
+#include <cassert>
 
 class TaskScheduler;
 class Scheduler;
@@ -26,6 +27,9 @@ public:
 
 private:
   // No copy. Required to quiet icpc.
-  Worker& operator=(const Worker& o) {};
+  Worker& operator=(const Worker& o) {
+    assert(false);
+    return *this;
+  };
 };
 #endif
