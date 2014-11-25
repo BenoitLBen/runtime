@@ -1,4 +1,3 @@
-#ifdef HAVE_RUNTIME
 #ifndef _TASK_TIMELINE_HPP
 #define _TASK_TIMELINE_HPP
 #include <deque>
@@ -80,5 +79,4 @@ public:
     return (timeline.size() == 0 ? 0 : timeline[0].start);
   }
 };
-#endif
 #endif

@@ -1,4 +1,3 @@
-#ifdef HAVE_RUNTIME
 #ifndef _WORKER_HPP
 #define _WORKER_HPP
 #include "task.hpp"
@@ -29,5 +28,4 @@ private:
   // No copy. Required to quiet icpc.
   Worker& operator=(const Worker& o) {};
 };
-#endif
 #endif

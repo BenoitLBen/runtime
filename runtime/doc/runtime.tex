@@ -453,7 +453,7 @@ struct AccessTracker {
 };
 unordered_map<Data*, AccessTracker> dataAccess;
 \end{lstlisting}
-La classe \texttt{AccessTracker} suit le dernier accès en écriture et les derniers accès en écriture à une donnée, et \texttt{dataAccess} fait le lien entre une donnée et les accès.
+La classe \texttt{AccessTracker} suit le dernier accès en écriture et les derniers accès en lecture à une donnée, et \texttt{dataAccess} fait le lien entre une donnée et les accès.
 
 Pour chaque dépendance \texttt{Data* d} d'une tâche \texttt{Task* t}, selon le type d'accès~:
 \begin{description}

@@ -1,6 +1,5 @@
-#ifdef HAVE_RUNTIME
-#ifndef RUNTIME_MPI_HPP
-#define RUNTIME_MPI_HPP
+#ifndef _RUNTIME_MPI_HPP
+#define _RUNTIME_MPI_HPP
 #include <mpi.h>
 
 #include <list>
@@ -12,7 +11,7 @@
 #include <set>
 
 #include "task.hpp"
-#include "../common/data_recorder.hpp"
+#include "common/data_recorder.hpp"
 
 
 /** Submit a MPI Send().
@@ -248,5 +247,4 @@ private:
   ~MpiRequestPool();
 };
 #endif
-#endif // HAVE_RUNTIME
 

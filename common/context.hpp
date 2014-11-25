@@ -5,7 +5,7 @@
 #ifndef _CONTEXT_HPP
 #define _CONTEXT_HPP
 
-#include "hmat-config.h"
+#include "config.h"
 
 #if defined(__GNUC__)
 #define MPF_FUNC __PRETTY_FUNCTION__
@@ -81,17 +81,6 @@ namespace trace {
     static std::unordered_map<void*, Node*> currentNodes[MAX_ROOTS]; // TODO: padding to avoid false sharing ?
     static void* enclosingContext[MAX_ROOTS]; // TODO: padding to avoid false sharing ?
 
-#ifdef HAVE_STARPU
-  public:
-    /// True if StarPU has been initialized. Must be set by the application.
-    static bool starpuIsInitialized;
-#endif
-#ifdef HAVE_RUNTIME
-  public:
-    /// True if the toy runtime has been initialized. Must be set by the application.
-    static bool runtimeIsInitialized;
-#endif
-
   public:
     /** Enter a context noted by a name.
      */
@@ -151,7 +140,7 @@ public:
 #define tracing_set_worker_index_func(f) do {} while (0)
 #define enter_context(x) do {} while(0)
 #define leave_context()  do {} while(0)
-#define increment_flops(x) do {} while(0)
+#define increment_flops(x) do { (void)(x); } while(0)
 #define tracing_dump(x) do {} while(0)
 #define DISABLE_CONTEXT_IN_BLOCK do {} while (0)
 #endif

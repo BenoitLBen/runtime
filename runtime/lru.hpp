@@ -1,5 +1,5 @@
-#ifdef HAVE_RUNTIME
-#ifndef RUNTIME_LRU_HPP
+#ifndef _RUNTIME_LRU_HPP
+#define _RUNTIME_LRU_HPP
 #include <unordered_map>
 #include <map>
 
@@ -99,4 +99,3 @@ public:
   }
 };
 #endif
-#endif // HAVE_RUNTIME

@@ -1,4 +1,3 @@
-#ifdef HAVE_RUNTIME
 #include "worker.hpp"
 #include "dependencies.hpp"
 
@@ -34,4 +33,3 @@ void Worker::mainLoop() {
     }
   }
 }
-#endif

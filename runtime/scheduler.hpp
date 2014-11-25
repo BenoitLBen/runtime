@@ -1,12 +1,10 @@
-#ifdef HAVE_RUNTIME
-
 #ifndef _SCHEDULER_HPP
 #define _SCHEDULER_HPP
 #include <mutex>
 #include <deque>
 
 #include "task.hpp"
-#include "../common/data_recorder.hpp"
+#include "common/data_recorder.hpp"
 
 /** Synchronized queue (FIFO) */
 template<typename T> class Queue {
@@ -81,7 +79,7 @@ public:
 };
 
 
-/** Simple FIFO scheduler.
+/** Simple FIFO scheduler with priorities (several FIFOs).
  */
 class PriorityScheduler : public Scheduler {
 private:
@@ -95,6 +93,3 @@ public:
   bool tryPop(TaskPtr& task);
 };
 #endif
-
-#endif // HAVE_RUNTIME
-

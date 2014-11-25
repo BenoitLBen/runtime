@@ -1,11 +1,10 @@
-#ifdef HAVE_RUNTIME
 #ifndef _TASK_HPP
 #define _TASK_HPP
 #include <vector>
 #include <string>
 #include <algorithm>
 
-#include "../common/context.hpp"
+#include "common/context.hpp"
 
 
 class TaskTimeline;
@@ -61,5 +60,4 @@ protected:
 };
 
 typedef Task* TaskPtr;
-#endif
 #endif

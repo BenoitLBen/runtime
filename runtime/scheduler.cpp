@@ -1,4 +1,3 @@
-#ifdef HAVE_RUNTIME
 #include "scheduler.hpp"
 
 void EagerScheduler::clear() {
@@ -50,4 +49,3 @@ bool PriorityScheduler::tryPop(TaskPtr& task) {
   }
   return false;
 }
-#endif // HAVE_RUNTIME

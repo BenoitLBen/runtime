@@ -1,6 +1,5 @@
-#include "hmat-config.h"
+#include "config.h"
 
-#ifdef HAVE_RUNTIME
 #include <list>
 #include <mutex>
 #include <mpi.h>
@@ -8,7 +7,7 @@
 #include "mpi.hpp"
 #include "data.hpp"
 #include "dependencies.hpp"
-#include "../common/memory_instrumentation.hpp"
+#include "common/memory_instrumentation.hpp"
 
 #include <iostream>
 
@@ -302,5 +301,4 @@ void MpiRecvTask::call() {
   assert(d->tag != 0);
   MpiRequestPool::getInstance().pushRecv(this);
 }
-#endif // HAVE_RUNTIME
 

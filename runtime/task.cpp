@@ -1,4 +1,3 @@
-#ifdef HAVE_RUNTIME
 #include "task.hpp"
 #include "data.hpp"
 #include "dependencies.hpp"
@@ -48,4 +47,3 @@ bool Task::isReady() const {
   }
   return true;
 }
-#endif

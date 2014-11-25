@@ -1,4 +1,3 @@
-#ifdef HAVE_RUNTIME
 #include <cassert>
 #include <fstream>
 #include <set>
@@ -538,4 +537,3 @@ void TaskScheduler::unregisterData(Data* d) {
     dataAccess.erase(it);
   }
 }
-#endif

@@ -1,0 +1,27 @@
+#  Runtimeoss (Runtime library, open source software)
+#
+
+# - Config file for the RUNTIMEOSS package
+# It defines the following variables
+#  RUNTIMEOSS_INCLUDE_DIRS - include directories for RUNTIMEOSS
+#  RUNTIMEOSS_LIBRARY_DIRS - library directories for RUNTIMEOSS (normally not used!)
+#  RUNTIMEOSS_LIBRARIES    - libraries to link against
+#  RUNTIMEOSS_EXECUTABLE   - the bar executable
+#  RUNTIMEOSS_DEFINITIONS  - List of compilation flags -DTOTO to export
+
+# Tell the user project where to find our headers and libraries
+
+set(RUNTIMEOSS_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/@RELATIVE_RUNTIMEOSS_INCLUDE_DIRS@;@MPI_INCLUDE_PATH@")
+set(RUNTIMEOSS_LIBRARY_DIRS "${CMAKE_CURRENT_LIST_DIR}/@RELATIVE_RUNTIMEOSS_LIB_DIR@")
+
+# Allows loading RUNTIMEOSS settings from another project
+set(RUNTIMEOSS_CONFIG_FILE "${CMAKE_CURRENT_LIST_FILE}")
+
+# List of compilation flags -DTOTO to export
+set(RUNTIMEOSS_DEFINITIONS @RUNTIMEOSS_DEFINITIONS@)
+
+# Our library dependencies (contains definitions for IMPORTED targets)
+include("${CMAKE_CURRENT_LIST_DIR}/RUNTIMEOSSLibraryDepends.cmake")
+
+# These are IMPORTED targets created by RUNTIMEOSSLibraryDepends.cmake
+set(RUNTIMEOSS_LIBRARIES runtimeoss)

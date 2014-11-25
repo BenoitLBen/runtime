@@ -1,8 +1,9 @@
-#ifdef HAVE_RUNTIME
 #include "disk.hpp"
 
 #include <cstdio>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <cassert>
 #include <cstring>
 #include <sys/stat.h>
@@ -244,4 +245,3 @@ IoThread::~IoThread() {
 void flushToDisk(Data* d) {
   TaskScheduler::getInstance().insertTask(new FlushTask(d), DEPS(1, DEP(d, WRITE)));
 }
-#endif // HAVE_RUNTIME

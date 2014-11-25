@@ -1,4 +1,3 @@
-#ifdef HAVE_RUNTIME
 #ifndef _DEPENDENCIES_HPP
 #define _DEPENDENCIES_HPP
 #include <vector>
@@ -13,7 +12,7 @@
 #include "scheduler.hpp"
 #include "lru.hpp"
 #include "worker.hpp"
-#include "../common/data_recorder.hpp"
+#include "common/data_recorder.hpp"
 
 class Data;
 
@@ -48,7 +47,7 @@ class Data;
     TaskScheduler::getInstance().
 */
 class TaskScheduler {
-  /// Tasks successors
+  /// Tasks successors: the in-degree and the out edges
   struct TaskSuccessors {
     int count;
     std::deque<int> successors;
@@ -247,4 +246,4 @@ public:
   void unregisterData(Data* d);
 };
 #endif
-#endif
+
