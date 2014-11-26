@@ -2,11 +2,9 @@
   \ingroup HMatrix
   \brief Memory Allocation tracking.
 */
-#if (__cplusplus > 199711L) || defined(HAVE_CPP11)
 #include "memory_instrumentation.hpp"
 
 #include "data_recorder.hpp"
-#include "system_types.h"
 
 #include <algorithm>
 
@@ -35,4 +33,3 @@ namespace mem_instr {
     enabled = false;
   }
 }
-#endif // __cplusplus > 199711L

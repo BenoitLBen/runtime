@@ -95,7 +95,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # ============================
 
 # Sources
-file(GLOB_RECURSE RUNTIMEOSS_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} runtime/*.*pp)
+file(GLOB_RECURSE RUNTIMEOSS_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} runtime/*.*pp common/*.*pp)
 
 link_directories(${PROJECT_BINARY_DIR})
 

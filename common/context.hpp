@@ -15,7 +15,6 @@
 #define MPF_FUNC __func__
 #endif
 
-#if (__cplusplus > 199711L) || defined(HAVE_CPP11)
 #include <chrono>
 #include <vector>
 #include <fstream>
@@ -135,15 +134,6 @@ public:
 #define leave_context() trace::Node::leaveContext()
 #define increment_flops(x) trace::Node::incrementFlops(x)
 #define tracing_dump(x) trace::Node::jsonDump(x)
-
-#else // C++11
-#define tracing_set_worker_index_func(f) do {} while (0)
-#define enter_context(x) do {} while(0)
-#define leave_context()  do {} while(0)
-#define increment_flops(x) do { (void)(x); } while(0)
-#define tracing_dump(x) do {} while(0)
-#define DISABLE_CONTEXT_IN_BLOCK do {} while (0)
-#endif
 
 /*! \brief Simple wrapper around enter/leave_context() to avoid
 having to put leave_context() before each return statement. */

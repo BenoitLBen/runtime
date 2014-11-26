@@ -1,5 +1,4 @@
-#if (__cplusplus > 199711L) || defined(HAVE_CPP11)
-#include "hmat-config.h"
+#include "config.h"
 
 #include "context.hpp"
 #include "my_assert.h"
@@ -176,4 +175,3 @@ namespace trace {
     return current;
   }
 }
-#endif
