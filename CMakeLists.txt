@@ -141,6 +141,14 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/
   )
 
+add_executable(gemm ${PROJECT_SOURCE_DIR}/examples/gemm.cpp)
+target_link_libraries(gemm runtimeoss)
+install(TARGETS gemm
+    RUNTIME DESTINATION "${RELATIVE_INSTALL_BIN_DIR}/examples" COMPONENT Runtime
+    LIBRARY DESTINATION "${RELATIVE_INSTALL_LIB_DIR}/examples" COMPONENT Runtime
+    ARCHIVE DESTINATION "${RELATIVE_INSTALL_LIB_DIR}/examples" COMPONENT Development
+)
+
 # To install, for example, MSVC runtime libraries:
 ######include (InstallRequiredSystemLibraries)
 
