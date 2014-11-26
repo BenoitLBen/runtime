@@ -70,6 +70,9 @@ find_package(MPI REQUIRED)
 #This is required by Intel MPI and harmless with other MPI
 add_definitions(-DMPICH_IGNORE_CXX_SEEK)
 
+#OpenMPI CXX binding seems to break python (also needed to work on OSX)
+add_definitions(-DOMPI_SKIP_MPICXX)
+
 include_directories(${MPI_INCLUDE_PATH})
 link_directories(${MPI_LIBRARY_DIRS})
 
@@ -92,7 +95,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # ============================
 
 # Sources
-file(GLOB_RECURSE RUNTIMEOSS_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} runtime/*.cpp)
+file(GLOB_RECURSE RUNTIMEOSS_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} runtime/*.*pp)
 
 link_directories(${PROJECT_BINARY_DIR})
 
