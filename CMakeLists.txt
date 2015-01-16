@@ -95,7 +95,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # ============================
 
 # Sources
-file(GLOB_RECURSE RUNTIMEOSS_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} runtime/*.*pp common/*.*pp)
+file(GLOB_RECURSE RUNTIMEOSS_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} runtime/*.*pp)
+file(GLOB_RECURSE CONTEXTOSS_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} common/*.*pp)
 
 link_directories(${PROJECT_BINARY_DIR})
 
@@ -107,6 +108,23 @@ if (MSVC)
     add_definitions(-D__func__=__FUNCTION__)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif (MSVC)
+
+# lib CONTEXTOSS
+add_library(contextoss ${CONTEXTOSS_SOURCES})
+set_target_properties(contextoss PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}" COMPILE_DEFINITIONS "${RUNTIMEOSS_DEFINITIONS}")
+set_target_properties(contextoss PROPERTIES VERSION ${RUNTIMEOSS_VERSION} SOVERSION ${RUNTIMEOSS_SO_VERSION})
+set_target_properties(contextoss PROPERTIES INSTALL_NAME_DIR ${INSTALL_LIB_DIR}    )
+
+target_link_libraries(contextoss
+            ${MPI_C_LIBRARIES}
+            ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES})
+
+install(TARGETS contextoss
+    EXPORT    RUNTIMEOSSLibraryDepends
+    RUNTIME DESTINATION "${RELATIVE_INSTALL_BIN_DIR}" COMPONENT Runtime
+    LIBRARY DESTINATION "${RELATIVE_INSTALL_LIB_DIR}" COMPONENT Runtime
+    ARCHIVE DESTINATION "${RELATIVE_INSTALL_LIB_DIR}" COMPONENT Development
+    )
 
 # lib RUNTIMEOSS
 add_library(runtimeoss ${RUNTIMEOSS_SOURCES})
@@ -121,7 +139,7 @@ if(BUILD_SHARED_LIBS )
     set(_LINK_PUBLIC LINK_PUBLIC)
 endif()
 
-target_link_libraries(runtimeoss
+target_link_libraries(runtimeoss contextoss
             ${MPI_C_LIBRARIES}
             ${CMAKE_CXX_IMPLICIT_LINK_LIBRARIES})
 
@@ -160,7 +178,7 @@ install(TARGETS gemm
 # BUILD-TREE
 #
 # Add all targets to the build-tree export set
-export(TARGETS runtimeoss ${RUNTIMEOSS_EXPORT_DEPS} FILE "${PROJECT_BINARY_DIR}/RUNTIMEOSSLibraryDepends.cmake")
+export(TARGETS runtimeoss contextoss ${RUNTIMEOSS_EXPORT_DEPS} FILE "${PROJECT_BINARY_DIR}/RUNTIMEOSSLibraryDepends.cmake")
 
 # Create a RUNTIMEOSSConfig.cmake file for use from the build tree
 set(RUNTIMEOSS_INCLUDE_DIRS
