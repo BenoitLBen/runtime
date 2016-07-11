@@ -9,6 +9,7 @@
 #include <condition_variable>
 #include <deque>
 #include <set>
+#include <thread>
 
 #include "task.hpp"
 #include "common/data_recorder.hpp"
@@ -166,8 +167,8 @@ private:
   std::list<Request*> detached;
   /** Locks the \a pending list. */
   std::mutex pendingMutex;
-  /** Used to sleep if no request is to be processed. */
-  std::condition_variable sleepCondition;
+  /** Used to sleep if no request is to be processed by the MPI thread. */
+  std::condition_variable sleepConditionMPI;
   /** List of requests to be submitted to MPI */
   std::list<Request*> pending;
 
@@ -189,6 +190,8 @@ private:
 public:
   /** Cache mechanism */
   MpiDataCache cache;
+  // thread id of the communication thread
+  std::thread::id myId;
 
 public:
   /** Enqueue a send.

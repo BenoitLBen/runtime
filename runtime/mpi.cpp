@@ -46,8 +46,8 @@ MpiDataCache::MpiDataCache() : validOnNode(), enabled(true) {
 
 void MpiDataCache::sendData(Data* d, int from, int to) {
   auto it = find(d);
-  assert(it->second[from]);
-  it->second[to] = true;
+  assert(it->second[from]); // Check that the data is valid on 'from'
+  it->second[to] = true; // Mark the data as valid on 'to'
 }
 
 void MpiDataCache::invalidateData(Data* d, int exceptOnNode) {
@@ -88,14 +88,14 @@ void MpiRequestPool::pushSend(MpiSendTask* task) {
   std::lock_guard<std::mutex> lock(pendingMutex);
   assert(task->d->tag != 0);
   pending.push_front(new Request(SEND, task));
-  sleepCondition.notify_one();
+  sleepConditionMPI.notify_one();
 }
 
 void MpiRequestPool::pushRecv(MpiRecvTask* task) {
   std::lock_guard<std::mutex> lock(pendingMutex);
   assert(task->d->tag != 0);
   pending.push_front(new Request(RECV, task));
-  sleepCondition.notify_one();
+  sleepConditionMPI.notify_one();
 }
 
 void MpiRequestPool::displayDetachedRequests() const {
@@ -164,7 +164,6 @@ MpiRequestPool::processCompletedRequest(std::list<Request*>::iterator it) {
         TaskScheduler& s = TaskScheduler::getInstance();
         s.postTaskExecution(t);
         it = detached.erase(it);
-        delete r;
         // Mark that this (to, tag) pair is now free
         auto p = std::make_pair(r->to, r->d->tag);
         sendsInFlight.erase(p);
@@ -175,6 +174,7 @@ MpiRequestPool::processCompletedRequest(std::list<Request*>::iterator it) {
           it->second.pop_front();
           pushDetachedRequest(r);
         }
+        delete r;
       }
     }
     break;
@@ -241,13 +241,14 @@ void MpiRequestPool::mainLoop() {
     int provided;
     MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
   }
-  bool shouldStop = false;
+  myId = std::this_thread::get_id();
+  bool shouldStop = false; // Moves to true when a NULL task is poped
   bool shouldReallyStop = shouldStop;
   while (!shouldReallyStop) {
     std::unique_lock<std::mutex> lock(pendingMutex);
     bool nothingToDo = pending.empty() && detached.empty();
     if (nothingToDo && (!shouldStop)) {
-      sleepCondition.wait(lock);
+      sleepConditionMPI.wait(lock);
     }
     shouldReallyStop = shouldStop && nothingToDo;
     while (!pending.empty()) {
@@ -267,13 +268,14 @@ void MpiRequestPool::mainLoop() {
     lock.unlock();
     testDetachedRequests();
   }
+  myId = static_cast<std::thread::id>(0);
 }
 
 void MpiRequestPool::pleaseStop() {
   // Convention: If the pushed request is NULL, we should stop.
   std::unique_lock<std::mutex> lock(pendingMutex);
   pending.push_front(NULL);
-  sleepCondition.notify_one();
+  sleepConditionMPI.notify_one();
 }
 
 

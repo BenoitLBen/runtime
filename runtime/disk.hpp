@@ -4,6 +4,7 @@
 #include <condition_variable>
 #include <list>
 #include <map>
+#include <thread>
 
 #include "task.hpp"
 
@@ -24,10 +25,14 @@ private:
 
   std::list<Request*> requests;
   std::mutex requestsMutex;
-  std::condition_variable sleepCondition;
+  /** Used to sleep if no request is to be processed by the IO thread. */
+  std::condition_variable sleepConditionIO;
   IoBackend* backend;
 
 public:
+  // thread id of the io thread
+  std::thread::id myId;
+
   void pushSwap(Data* d);
   void pushPrefetch(Data* d);
   void mainLoop();
@@ -44,6 +49,7 @@ private:
   ~IoThread();
 };
 
-
+/*! \brief Put d in the position of being the next data evicted out of memory when room is needed.
+   */
 void flushToDisk(Data* d);
 #endif

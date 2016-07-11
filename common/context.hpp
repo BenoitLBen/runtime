@@ -1,6 +1,6 @@
 /*! \file
   \ingroup HMatrix
-  \brief Context manager used for the tracing functionnality provided by MPF.
+  \brief Context manager used for the tracing functionnality.
 */
 #ifndef _CONTEXT_HPP
 #define _CONTEXT_HPP
@@ -65,7 +65,7 @@ namespace trace {
 
   class Node {
   public:
-    /// True if the tracing is enabled. True by default.
+    /// True if the tracing is enabled. True by default. Not used anywhere, apparently...
     static bool enabled;
   private:
     /// Unique name for the context.
@@ -89,7 +89,7 @@ namespace trace {
     static void leaveContext();
     /** Get a unique reference to the current context. */
     static void* currentReference();
-    /** Set the current as being relative to a given enclosong one.
+    /** Set the current context as being relative to a given enclosing one.
 
         The enclosing context is identified through the pointer returned by \a
         currentReference().

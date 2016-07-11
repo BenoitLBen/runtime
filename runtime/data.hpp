@@ -8,14 +8,26 @@ public:
   int tag;
   size_t oldSize;
   // OOC
+  /*! \brief Number of usage of this data in the tasks allready posted & ready for execution
+     */
   int refCount;
+
+  /*! \brief true if the data is on disk or if a write request has been pushed, false if the data is incore.
+     */
   bool swapped;
+
+  /*! \brief true if the version of this data currently stored on disk is garbage, false if it is simiral to the version incore.
+     */
   bool dirty;
+
+  /*! \brief true if a read requesthas been posted, false otherwise.
+     */
   bool prefetchInFlight;
 
   // You can touch these
-  bool swappable; // Can the runtime offload this data to disk
-
+  /*! \brief  Can the runtime offload this data to disk
+     */
+  bool swappable;
 public:
   Data() : rank(-1), tag(-1), oldSize(0), refCount(0), swapped(false),
            dirty(true), prefetchInFlight(false), swappable(false) {}

@@ -40,8 +40,8 @@ public:
    @param end end time
    @param extraData as returned by task::extraData
   */
-  void addTask(const Task* task, TimePoint start, TimePoint stop) {
-    timeline.emplace_back(TaskExecution(task->name, start, stop, task->extraData()));
+  void addTask(const std::string name, TimePoint start, TimePoint stop, std::string extraData) {
+    timeline.emplace_back(TaskExecution(name, start, stop, extraData));
   }
 
   /** Dump the JSON timeline data to a stream.

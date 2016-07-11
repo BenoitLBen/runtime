@@ -18,11 +18,13 @@ namespace trace {
 
   /** \brief Set the function used to get the root index.
 
-      \return a nuber between 0 (not in a parallel region) and the number of
+      \return a number between 0 (not in a parallel region) and the number of
       workers (included).
    */
   static int currentNodeIndex() {
-    return (nodeIndexFunction ? nodeIndexFunction() : -1) + 1;
+    int res = (nodeIndexFunction ? nodeIndexFunction() : -1) + 1;
+    myAssert(res>=0 && res<MAX_ROOTS);
+    return res;
   }
 
   void setNodeIndexFunction(int (*nodeIndexFunc)()) {
@@ -122,7 +124,6 @@ namespace trace {
       << "\"totalTime\": " << data.totalTime / 1e9 << ", "
       << "\"totalFlops\": " << data.totalFlops << ", "
       << "\"totalBytesSent\": " << data.totalBytesSent << ", "
-      << "\"totalBytesReceived\": " << data.totalBytesReceived << ", "
       << "\"totalBytesReceived\": " << data.totalBytesReceived << ", "
       << "\"totalCommTime\": " << data.totalCommTime / 1e9 << "," << std::endl;
     f << "\"children\": [";

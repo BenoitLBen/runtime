@@ -49,7 +49,7 @@ class Data;
 class TaskScheduler {
   /// Tasks successors: the in-degree and the out edges
   struct TaskSuccessors {
-    int count;
+    int count; // number of predecessors
     std::deque<int> successors;
   };
   /// Tracker for the last read and write dependency on some data.

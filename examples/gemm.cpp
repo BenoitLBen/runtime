@@ -114,6 +114,7 @@ public:
     }
   }
 
+  // this <- alpha.a.b + beta.this
   void gemm(const scalar_t alpha, const Matrix& a, const Matrix& b, const scalar_t beta) {
     Matrix& c = *this;
     c.scale(beta);
@@ -123,15 +124,15 @@ public:
     for (int i = 0; i < c.m; ++i) {
       for (int j = 0; j < c.n; ++j) {
         for (int k = 0; k < a.n; ++k) {
-          c.get(i, j) += a.get(i, k) * b.get(k, j);
+          c.get(i, j) += alpha * a.get(i, k) * b.get(k, j);
         }
       }
     }
   }
 
-  void toTile(int i, int j, Matrix& tile) const {
-    const int iOffset = i * tile.m;
-    const int jOffset = j * tile.n;
+  void toTile(int ib, int jb, Matrix& tile) const {
+    const int iOffset = ib * tile.m;
+    const int jOffset = jb * tile.n;
     for (int j = 0; j < tile.n; j++) {
       for (int i = 0; i < tile.m; i++) {
         tile.get(i, j) = get(i + iOffset, j + jOffset);
@@ -139,9 +140,9 @@ public:
     }
   }
 
-  void fromTile(int i, int j, const Matrix& tile) {
-    const int iOffset = i * tile.m;
-    const int jOffset = j * tile.n;
+  void fromTile(int ib, int jb, const Matrix& tile) {
+    const int iOffset = ib * tile.m;
+    const int jOffset = jb * tile.n;
     for (int j = 0; j < tile.n; j++) {
       for (int i = 0; i < tile.m; i++) {
         get(i + iOffset, j + jOffset) = tile.get(i, j);
@@ -172,6 +173,7 @@ void fromTiles(Matrix& m, Matrix** tiles, const int nTiles) {
   }
 }
 
+// alpha a.b + beta c -> c
 void tiledGemm(Matrix** c, scalar_t alpha, Matrix** a, Matrix** b, scalar_t beta,
                int nTiles) {
   for (int j = 0; j < nTiles; j++) {
@@ -261,7 +263,7 @@ void runtimeGemm(Matrix** c, scalar_t alpha, Matrix** a, Matrix** b,
       }
     }
   }
-  s.go(4);
+  s.go(4); // 4 threads
 }
 
 
@@ -275,23 +277,34 @@ int main(int argc, char** argv) {
   int nTiles = atoi(argv[2]);
   assert(n % nTiles == 0);
 
+  std::cout << "Creating random a... "<< std::endl;
   Matrix a = Matrix::random(n, n);
+  std::cout << "Creating random b... "<< std::endl;
   Matrix b = Matrix::random(n, n);
+  std::cout << "Creating c... "<< std::endl;
   Matrix c(n, n);
+  std::cout << "Creating c2... "<< std::endl;
   Matrix c2(n, n);
 
+  std::cout << "Computing a.b -> c sequentially "<< std::endl;
   c.gemm(1, a, b, 0);
 
+  std::cout << "Splitting a into tiles... "<< std::endl;
   Matrix** aTiles = toTiles(a, nTiles);
+  std::cout << "Splitting b into tiles... "<< std::endl;
   Matrix** bTiles = toTiles(b, nTiles);
+  std::cout << "Splitting c2 into tiles... "<< std::endl;
   Matrix** cTiles = toTiles(c2, nTiles);
+  std::cout << "Computing a.b -> c2 in parallel "<< std::endl;
   runtimeGemm(cTiles, 1, aTiles, bTiles, 0, nTiles);
   // tiledGemm(cTiles, 1, aTiles, bTiles, 0, nTiles);
   deleteTiles(aTiles, nTiles);
   deleteTiles(bTiles, nTiles);
+  std::cout << "Gathering c2 from tiles... "<< std::endl;
   fromTiles(c2, cTiles, nTiles);
   deleteTiles(cTiles, nTiles);
 
+  std::cout << "Checking result... "<< std::endl;
   assert(c.almostEquals(c2, 1e-15));
   assert(c == c2);
   return 0;

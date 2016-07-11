@@ -120,7 +120,7 @@ void TaskScheduler::insertMpiTask(Task* task,
 
   // Before posting the recv() of the foreign deps, make sure that all the local
   // dependencies are available. To do that, we create a dummy task which has
-  // all the foreign dependencies as deps, and a dummy marker data which is a
+  // all the local dependencies as deps, and a dummy marker data which is a
   // dep of all the recv() calls.
   if (node == me) {
     std::vector<std::pair<Data*, AccessMode> > localDeps;
@@ -150,7 +150,10 @@ void TaskScheduler::insertMpiTask(Task* task,
       if (!mpi.cache.isValidOnNode(d, node)) {
         insertTask(new MpiSendTask(d, node), DEPS(1, DEP(d, READ)) , priority);
       }
-    } else if ((d->rank != me) && (node == me)) {
+    }
+    // Else if we don't own the data and we are the node executing the task, we recv it
+    // from the owner.
+    else if ((d->rank != me) && (node == me)) {
       if (!mpi.cache.isValid(d)) {
         if (dummy) {
           insertTask(new MpiRecvTask(d, d->rank),
@@ -164,16 +167,16 @@ void TaskScheduler::insertMpiTask(Task* task,
     mpi.cache.sendData(d, d->rank, node);
   }
   // Avoid cluttering the dataAccess hash table.
-  if (dummy) {
-    unregisterData(dummy);
-    delete dummy;
-  }
+//  if (dummy) {
+//    unregisterData(dummy);
+//    delete dummy;
+//  }
   // We execute it.
   if (node == me) {
     insertTask(task, params, priority);
   }
   // After the task:
-  // - If we are executing: send the data we wrote to that we don't own back to their owner
+  // - If we are executing: send the data we wrote to & that we don't own back to their owner
   // - Otherwise: receive the data we own that the task wrote to
   for (const auto& p : params) {
     Data* d = p.first;
@@ -383,11 +386,13 @@ void TaskScheduler::postTaskExecutionInternal(Task* task,
   }
 
   tasksLeft--;
+
+  // Decrease "count" = the number of predecessors of all the successors, and push the ready tasks (count==0)
   for (int successor : succ[task->index].successors) {
     if (--succ[successor].count == 0) {
       Task* s = tasks[successor];
       startPrefetch(s);
-      if (s->isCallback) {
+      if (s->isCallback) { // true only for: MpiSend, MpiRecv, Sync, Flush, Deallocate
         callbacks.push_back(s);
       } else {
         availableTasks->push(s);
@@ -500,15 +505,38 @@ void TaskScheduler::go(int n) {
   readDataRecorder.toFile("data_read.txt");
 }
 
+/*! \brief Returns a worker id (-3 for the master thread, -2 for IO thread, -1 for the MPI thread, 0 to N-1 for the workers)
+  */
 int TaskScheduler::currentId() const {
-  const int n = (int) workerIds.size();
   auto id = std::this_thread::get_id();
+
+  // Generic worker threads
+  const int n = (int) workerIds.size();
   for (int i = 0; i < n; i++) {
     if (id == workerIds[i]) {
       return i;
     }
   }
-  return -1;
+
+  // MPI thread
+  if (id == MpiRequestPool::getInstance().myId)
+    return -1;
+
+  // IO thread
+  if (id == IoThread::getInstance().myId)
+    return -2;
+
+  // Master thread
+  return -3;
+}
+
+/*! \brief Returns a worker id (-1 for the master thread, 0 for IO, 1 for MPI, >=2 for the workers)
+
+    It will be called by the 'context' timer system by setting the pointer nodeIndexFunction in RuntimeEngine<T>::init().
+  */
+int runtimeWorkerId() {
+  TaskScheduler& s = TaskScheduler::getInstance();
+  return s.currentId()+2 ;
 }
 
 void TaskScheduler::dumpTimeline(const char* filename) const {

@@ -9,6 +9,13 @@
 
 
 void Task::execute(Task* t, TaskTimeline* timeline) {
+  // If 't' is a send/recv, t->call() will push a request to the MPI thread, and t will be deleted
+  // after this request is done. So potentially, t is invalid right after t->call(). That is why we backup
+  // some fields of 't' here.
+  bool doPost(t->doPostExecution);
+  std::string name_bak(t->name);
+  std::string extraData_bak(t->extraData());
+
   if (!t->noPrefetch) {
     // Make sure that all the prefetched are done.
     for (auto& p : t->params) {
@@ -27,11 +34,11 @@ void Task::execute(Task* t, TaskTimeline* timeline) {
     auto start = std::chrono::high_resolution_clock::now();
     t->call();
     auto stop = std::chrono::high_resolution_clock::now();
-    timeline->addTask(t, start, stop);
+    timeline->addTask(name_bak, start, stop, extraData_bak);
   } else {
     t->call();
   }
-  if (t->doPostExecution) {
+  if (doPost) { // false only for: MpiSend, MpiRecv
     TaskScheduler::getInstance().postTaskExecution(t);
   }
 }

@@ -42,8 +42,23 @@ private:
   void* enclosingContext;
 
 protected:
+  /*! \brief Tells if the "post-execution" process must be done after this task
+
+     It is true by default, false only for: MpiSend, MpiRecv (because in that case postTaskExecution() is
+     called in processCompletedRequest() in mpi.cpp).
+    */
   bool doPostExecution;
+  /*! \brief Tells if a task is a callback
+
+     It is false by default, true only for: MpiSend, MpiRecv, Sync, Flush, Deallocate.
+     It is executed immediately when its dependencies are satisfied (without going in a tasks queue)
+    */
   bool isCallback;
+  /*! \brief Deactivate the prefetch for this task
+
+     It is false by default (which means prefetch is ON), true only for: Flush (of course: we don't load stuff in
+memory if we mean to dump them on disk immediately after).
+    */
   bool noPrefetch;
 
 public:

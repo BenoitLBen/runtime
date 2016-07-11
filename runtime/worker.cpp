@@ -32,4 +32,5 @@ void Worker::mainLoop() {
       Task::execute(task, &timeline);
     }
   }
+  myId = static_cast<std::thread::id>(0);
 }

@@ -31,7 +31,7 @@ private:
   Data* d;
 
 public:
-  FlushTask(Data* d) : d(d) {
+  FlushTask(Data* d) : Task("Flush"), d(d) {
     isCallback = true;
     noPrefetch = true;
   }
@@ -166,7 +166,7 @@ void IoThread::pushSwap(Data* d) {
   assert(!d->swapped);
   d->swapped = true;
   requests.push_front(new Request(WRITE, d));
-  sleepCondition.notify_one();
+  sleepConditionIO.notify_one();
 }
 
 void IoThread::pushPrefetch(Data* d) {
@@ -174,13 +174,13 @@ void IoThread::pushPrefetch(Data* d) {
   assert(d->swappable);
   assert(d->swapped);
   requests.push_front(new Request(READ, d));
-  sleepCondition.notify_one();
+  sleepConditionIO.notify_one();
 }
 
 void IoThread::pleaseStop() {
   std::lock_guard<std::mutex> lock(requestsMutex);
   requests.push_front(NULL);
-  sleepCondition.notify_one();
+  sleepConditionIO.notify_one();
 }
 
 void IoThread::processRequest(Request* r) {
@@ -192,6 +192,7 @@ void IoThread::processRequest(Request* r) {
       backend->readData(r->d);
       r->d->swapped = false;
       r->d->dirty = false;
+      r->d->prefetchInFlight = false;
     }
     break;
   case WRITE:
@@ -211,13 +212,14 @@ void IoThread::processRequest(Request* r) {
 }
 
 void IoThread::mainLoop() {
+  myId = std::this_thread::get_id();
   bool shouldStop = false;
   bool shouldReallyStop = false;
   while (!shouldReallyStop) {
     std::unique_lock<std::mutex> lock(requestsMutex);
     bool nothingToDo = requests.empty();
     if (nothingToDo && (!shouldStop)) {
-      sleepCondition.wait(lock);
+      sleepConditionIO.wait(lock);
     }
     shouldReallyStop = shouldStop && nothingToDo;
     while (!requests.empty()) {
@@ -235,6 +237,7 @@ void IoThread::mainLoop() {
     }
     lock.unlock();
   }
+  myId = static_cast<std::thread::id>(0);
 }
 
 IoThread::IoThread() {
