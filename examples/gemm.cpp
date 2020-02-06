@@ -117,7 +117,9 @@ public:
   // this <- alpha.a.b + beta.this
   void gemm(const scalar_t alpha, const Matrix& a, const Matrix& b, const scalar_t beta) {
     Matrix& c = *this;
-    c.scale(beta);
+    assert(a.mat != c.mat);
+    assert(b.mat != c.mat);
+    c.scale(beta); // invalid if c is the same as a or b
     assert(a.n == b.m);
     assert(a.m == c.m);
     assert(b.n == c.n);
@@ -254,12 +256,12 @@ void runtimeGemm(Matrix** c, scalar_t alpha, Matrix** a, Matrix** b,
   for (int j = 0; j < nTiles; j++) {
     for (int i = 0; i < nTiles; i++) {
       Matrix& c_ij = *c[i + j * nTiles];
-      s.insertTask(new ScaleTask(beta, c_ij), {{&cData[i + j * nTiles], WRITE}});
+      s.insertTask(new ScaleTask(beta, c_ij), {{&cData[i + j * nTiles], toyRT_WRITE}});
       for (int k = 0; k < nTiles; k++) {
         Matrix& a_ik = *a[i + k * nTiles];
         Matrix& b_kj = *b[k + j * nTiles];
         s.insertTask(new GemmTask(c_ij, alpha, a_ik, b_kj, 1.),
-                     {{&cData[i + j * nTiles], WRITE}, {&aData[i + k * nTiles], READ}, {&bData[k + j * nTiles], READ}});
+                     {{&cData[i + j * nTiles], toyRT_WRITE}, {&aData[i + k * nTiles], toyRT_READ}, {&bData[k + j * nTiles], toyRT_READ}});
       }
     }
   }

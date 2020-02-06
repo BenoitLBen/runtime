@@ -1,3 +1,4 @@
+#include <sstream>
 #include "task.hpp"
 #include "data.hpp"
 #include "dependencies.hpp"
@@ -7,6 +8,11 @@
 #define ACCESS_ONCE(x) (*(volatile decltype(x) *)&(x))
 #define RELAX_CPU __asm__ __volatile("rep; nop")
 
+std::string Task::description() const {
+  std::ostringstream convert;   // stream used for the conversion
+  convert << "[idx " << index << "] " << name ;
+  return convert.str();
+}
 
 void Task::execute(Task* t, TaskTimeline* timeline) {
   // If 't' is a send/recv, t->call() will push a request to the MPI thread, and t will be deleted
@@ -19,7 +25,7 @@ void Task::execute(Task* t, TaskTimeline* timeline) {
   if (!t->noPrefetch) {
     // Make sure that all the prefetched are done.
     for (auto& p : t->params) {
-      Data* d = p.first;
+      Data* d = (Data*)p.first;
       // Loop while the data has not been fetched
       while (true) {
         if (!ACCESS_ONCE(d->swapped)) {
@@ -29,7 +35,7 @@ void Task::execute(Task* t, TaskTimeline* timeline) {
       }
     }
   }
-  trace::Node::setEnclosingContext(t->enclosingContext);
+//  trace::Node::setEnclosingContext(t->submittingContext);
   if (timeline) {
     auto start = std::chrono::high_resolution_clock::now();
     t->call();
@@ -46,7 +52,7 @@ void Task::execute(Task* t, TaskTimeline* timeline) {
 bool Task::isReady() const {
   if (!noPrefetch) {
     for (auto& p : params) {
-      Data* d = p.first;
+      Data* d = (Data*)p.first;
       if (ACCESS_ONCE(d->swapped)) {
         return false;
       }
@@ -54,3 +60,4 @@ bool Task::isReady() const {
   }
   return true;
 }
+

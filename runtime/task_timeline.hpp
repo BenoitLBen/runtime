@@ -1,5 +1,4 @@
-#ifndef _TASK_TIMELINE_HPP
-#define _TASK_TIMELINE_HPP
+#pragma once
 #include <deque>
 #include <string>
 #include <chrono>
@@ -79,4 +78,3 @@ public:
     return (timeline.size() == 0 ? 0 : timeline[0].start);
   }
 };
-#endif

@@ -40,11 +40,19 @@ MpiDataCache::iterator_t MpiDataCache::find(Data* d) {
 }
 
 MpiDataCache::MpiDataCache() : validOnNode(), enabled(true) {
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  rank = TaskScheduler::getInstance().getMpiRank();
+  size = TaskScheduler::getInstance().getMpiSize();
+}
+
+void MpiDataCache::eraseData(Data* d) {
+  iterator_t it = validOnNode.find(d);
+  if (it != validOnNode.end()) {
+    validOnNode.erase(it);
+  }
 }
 
 void MpiDataCache::sendData(Data* d, int from, int to) {
+  (void)from;
   auto it = find(d);
   assert(it->second[from]); // Check that the data is valid on 'from'
   it->second[to] = true; // Mark the data as valid on 'to'
@@ -53,9 +61,7 @@ void MpiDataCache::sendData(Data* d, int from, int to) {
 void MpiDataCache::invalidateData(Data* d, int exceptOnNode) {
   auto it = find(d);
   if (it->second[rank] && (rank != d->rank) && (rank != exceptOnNode)) {
-    TaskScheduler::getInstance().insertTask(new DeallocateDataTask(d),
-                                            DEPS(1, DEP(d, WRITE)),
-                                            Priority::HIGH);
+    TaskScheduler::getInstance().insertTask(new DeallocateDataTask(d), {{d, toyRT_WRITE}}, Priority::HIGH);
   }
   bool tmp;
   if (exceptOnNode != -1) {
@@ -70,7 +76,7 @@ void MpiDataCache::invalidateData(Data* d, int exceptOnNode) {
 
 void MpiDataCache::invalidateAll() {
   for (auto p : validOnNode) {
-    invalidateData(p.first);
+    invalidateData((Data*)p.first);
   }
 }
 
@@ -87,6 +93,8 @@ bool MpiDataCache::isValidOnNode(Data* d, int node) {
 void MpiRequestPool::pushSend(MpiSendTask* task) {
   std::lock_guard<std::mutex> lock(pendingMutex);
   assert(task->d->tag != 0);
+  if (TaskScheduler::getInstance().verbose())
+    printf("%s push %s\n", TaskScheduler::getInstance().getLocalization().c_str(), task ? task->description().c_str() : "NULL");
   pending.push_front(new Request(SEND, task));
   sleepConditionMPI.notify_one();
 }
@@ -94,6 +102,8 @@ void MpiRequestPool::pushSend(MpiSendTask* task) {
 void MpiRequestPool::pushRecv(MpiRecvTask* task) {
   std::lock_guard<std::mutex> lock(pendingMutex);
   assert(task->d->tag != 0);
+  if (TaskScheduler::getInstance().verbose())
+    printf("%s push %s\n", TaskScheduler::getInstance().getLocalization().c_str(), task ? task->description().c_str() : "NULL");
   pending.push_front(new Request(RECV, task));
   sleepConditionMPI.notify_one();
 }
@@ -126,7 +136,7 @@ MpiRequestPool::processCompletedRequest(std::list<Request*>::iterator it) {
         // std::cout << "RECV(" << r->count << ", from = " << r->from
         //           << ", tag = " << r->d->tag << ")" << std::endl;
         int ierr = MPI_Irecv(r->ptr, (int) r->count, MPI_BYTE, r->from,
-                             r->d->tag, MPI_COMM_WORLD, &r->req);
+                             r->d->tag, TaskScheduler::getInstance().getMpiComm(), &r->req);
         assert(!ierr);
         // Don't remove the query.
         // TODO: should we bump the iterator ? If we don't, this very query will
@@ -151,11 +161,12 @@ MpiRequestPool::processCompletedRequest(std::list<Request*>::iterator it) {
       if (!r->sizeReqDone) {
         r->sizeReqDone = true;
         ssize_t count = r->d->pack(&r->ptr);
+        (void)count;
         assert(count == r->count);
         REGISTER_ALLOC(r->ptr, r->count);
         sentData.record(r->count);
         int ierr = MPI_Isend(r->ptr, (int) r->count, MPI_BYTE, r->to, r->d->tag,
-                             MPI_COMM_WORLD, &r->req);
+                             TaskScheduler::getInstance().getMpiComm(), &r->req);
         assert(!ierr);
         ++it;
       } else {
@@ -170,7 +181,7 @@ MpiRequestPool::processCompletedRequest(std::list<Request*>::iterator it) {
         // If there is a request waiting, process it now.
         auto it = waiting.find(p);
         if (it != waiting.end()) {
-          Request* r = it->second.front();
+            Request* r = it->second.front(); // What if r is NULL ?
           it->second.pop_front();
           pushDetachedRequest(r);
         }
@@ -216,7 +227,7 @@ void MpiRequestPool::pushDetachedRequest(Request* r) {
         // std::cout << "SEND(" << r->count << ", to = " << r->to << ", tag = "
         //           << r->d->tag << ")" << std::endl;
         ierr = MPI_Issend(&r->count, 1, MPI_UNSIGNED_LONG_LONG, r->to,
-                          r->d->tag, MPI_COMM_WORLD, &r->req);
+                          r->d->tag, TaskScheduler::getInstance().getMpiComm(), &r->req);
         assert(!ierr);
       }
     }
@@ -226,7 +237,7 @@ void MpiRequestPool::pushDetachedRequest(Request* r) {
       // std::cout << "RECV(" << ", from = " << r->from << ", tag = "
       //           << r->d->tag << ")" << std::endl;
       ierr = MPI_Irecv(&r->count, 1, MPI_UNSIGNED_LONG_LONG, r->from, r->d->tag,
-                       MPI_COMM_WORLD, &r->req);
+                       TaskScheduler::getInstance().getMpiComm(), &r->req);
       assert(!ierr);
     }
     break;
@@ -242,7 +253,10 @@ void MpiRequestPool::mainLoop() {
     MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
   }
   myId = std::this_thread::get_id();
-  bool shouldStop = false; // Moves to true when a NULL task is poped
+  {
+    DECLARE_CONTEXT;
+
+    bool shouldStop = false; // Moves to true when a NULL task is poped
   bool shouldReallyStop = shouldStop;
   while (!shouldReallyStop) {
     std::unique_lock<std::mutex> lock(pendingMutex);
@@ -268,6 +282,7 @@ void MpiRequestPool::mainLoop() {
     lock.unlock();
     testDetachedRequests();
   }
+  }
   myId = static_cast<std::thread::id>(0);
 }
 
@@ -280,8 +295,8 @@ void MpiRequestPool::pleaseStop() {
 
 
 MpiRequestPool::MpiRequestPool() {
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  rank = TaskScheduler::getInstance().getMpiRank();
+  size = TaskScheduler::getInstance().getMpiSize();
 }
 
 MpiRequestPool::~MpiRequestPool() {

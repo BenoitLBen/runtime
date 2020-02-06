@@ -1,4 +1,5 @@
 #include "scheduler.hpp"
+#include "dependencies.hpp"
 
 void EagerScheduler::clear() {
   std::lock_guard<std::mutex> guard(mutex);
@@ -28,6 +29,8 @@ bool EagerScheduler::tryPop(TaskPtr& task) {
 
 void PriorityScheduler::clear() {
   std::lock_guard<std::mutex> guard(mutex);
+  if (TaskScheduler::getInstance().verbose())
+    printf("%s PriorityScheduler::clear\n", TaskScheduler::getInstance().getLocalization().c_str());
   for (int i = 0; i < PRIORITIES; i++) {
     q[i].clear();
   }
@@ -35,6 +38,8 @@ void PriorityScheduler::clear() {
 
 void PriorityScheduler::push(TaskPtr task) {
   std::lock_guard<std::mutex> guard(mutex);
+  if (TaskScheduler::getInstance().verbose())
+    printf("%s PriorityScheduler::push %s\n", TaskScheduler::getInstance().getLocalization().c_str(), task ? task->description().c_str() : "NULL");
   int priority = task ? task->priority : LOW;
   q[priority].push_back(task);
   taskCount++;
@@ -49,8 +54,12 @@ bool PriorityScheduler::tryPop(TaskPtr& task) {
       q[i].pop_front();
       taskCount--;
       if (recorder) recorder->record(taskCount);
+      if (TaskScheduler::getInstance().verbose())
+        printf("%s PriorityScheduler::tryPop %s\n", TaskScheduler::getInstance().getLocalization().c_str(), task ? task->description().c_str() : "NULL");
       return true;
     }
   }
+  if (TaskScheduler::getInstance().verbose())
+    printf("%s PriorityScheduler::tryPop failed\n", TaskScheduler::getInstance().getLocalization().c_str());
   return false;
 }

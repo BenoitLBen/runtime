@@ -1,5 +1,4 @@
-#ifndef _DATA_HPP
-#define _DATA_HPP
+#pragma once
 
 class Data {
 public:
@@ -60,4 +59,3 @@ public:
    */
   virtual size_t size() = 0;
 };
-#endif

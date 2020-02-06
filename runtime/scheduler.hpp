@@ -1,5 +1,4 @@
-#ifndef _SCHEDULER_HPP
-#define _SCHEDULER_HPP
+#pragma once
 #include <mutex>
 #include <deque>
 
@@ -58,4 +57,3 @@ public:
   void push(TaskPtr task);
   bool tryPop(TaskPtr& task);
 };
-#endif

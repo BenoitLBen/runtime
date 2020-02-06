@@ -1,7 +1,7 @@
 #include "config.h"
 
 #include "context.hpp"
-#include "my_assert.h"
+#include <cassert>
 
 #include <cstring>
 #include <cstdio>
@@ -14,6 +14,7 @@
 namespace trace {
   typedef std::chrono::nanoseconds ns;
 
+  /* \brief pointer to a function return the worker Id (between 0 and nbWorkers-1) or -1 in a sequential section */
   int (*nodeIndexFunction)() = NULL;
 
   /** \brief Set the function used to get the root index.
@@ -23,7 +24,7 @@ namespace trace {
    */
   static int currentNodeIndex() {
     int res = (nodeIndexFunction ? nodeIndexFunction() : -1) + 1;
-    myAssert(res>=0 && res<MAX_ROOTS);
+    assert(res>=0 && res<MAX_ROOTS);
     return res;
   }
 
@@ -36,7 +37,7 @@ namespace trace {
   void* Node::enclosingContext[MAX_ROOTS] = {};
 
   Node::Node(const char* _name, Node* _parent)
-    : name(_name), data(), parent(_parent), children() {}
+    : name_(_name), data(), parent(_parent), children() {}
 
   Node::~Node() {
     for (auto it = children.begin(); it != children.end(); ++it) {
@@ -46,7 +47,7 @@ namespace trace {
 
   void Node::enterContext(const char* name) {
     Node* current = currentNode();
-    myAssert(current);
+    assert(current);
     Node* child = current->findChild(name);
     int index = currentNodeIndex();
     void* enclosing = enclosingContext[index];
@@ -55,7 +56,7 @@ namespace trace {
       child = new Node(name, current);
       current->children.push_back(child);
     }
-    myAssert(child);
+    assert(child);
     currentNodes[index][enclosing] = child;
     current = child;
     current->data.lastEnterTime = std::chrono::high_resolution_clock::now();
@@ -66,7 +67,7 @@ namespace trace {
     int index = currentNodeIndex();
     void* enclosing = enclosingContext[index];
     Node* current = currentNodes[index][enclosing];
-    myAssert(current);
+    assert(current);
 
     Time now = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<ns>(now - current->data.lastEnterTime);
@@ -109,16 +110,16 @@ namespace trace {
       // On cherche la correspondance avec le pointeur. Puisqu'on demande que
       // tous les noms soient des pointeurs qui existent tout le long de
       // l'execution, on peut forcer l'unicite.
-      if ((*it)->name == name) {
+      if ((*it)->name_ == name) {
         return *it;
       }
     }
     return NULL;
   }
 
-  void Node::dump(std::ofstream& f) const {
+  void Node::jsonDump(std::ofstream& f) const {
     f << "{"
-      << "\"name\": \"" << name << "\", "
+      << "\"name\": \"" << name_ << "\", "
       << "\"id\": \"" << this << "\", "
       << "\"n\": " << data.n << ", "
       << "\"totalTime\": " << data.totalTime / 1e9 << ", "
@@ -130,13 +131,13 @@ namespace trace {
     std::string delimiter("");
     for (auto it = children.begin(); it != children.end(); ++it) {
       f << delimiter;
-      (*it)->dump(f);
+      (*it)->jsonDump(f);
       delimiter = ", ";
     }
     f << "]}";
   }
 
-  void Node::jsonDump(const char* filename) {
+  void Node::jsonDumpMain(const char* filename) {
     std::ofstream f(filename);
 
     f << "[";
@@ -146,7 +147,7 @@ namespace trace {
         for (auto p : currentNodes[i]) {
           Node* root = p.second;
           f << delimiter << std::endl;
-          root->dump(f);
+          root->jsonDump(f);
           delimiter = ", ";
         }
       }
@@ -157,19 +158,21 @@ namespace trace {
   /** Find the current node, allocating one if necessary.
    */
   Node* Node::currentNode() {
-    int id = currentNodeIndex();
-    void* enclosing = enclosingContext[id];
-    auto it = currentNodes[id].find(enclosing);
+    int index = currentNodeIndex();
+    void* enclosing = enclosingContext[index];
+    auto it = currentNodes[index].find(enclosing);
     Node* current;
-    if (it == currentNodes[id].end()) {
+    if (it == currentNodes[index].end()) {
+      // TODO : avec toyrt, les threads 1 et 2 ne sont pas des workers, ce sont les threads IO & MPI
+      // Il faudrait que le code appelant donne le nom du noeud plutot qu'un index
       char *name = const_cast<char*>("root");
-      if (id != 0) {
+      if (index != 0) {
         name = strdup("Worker #XXX - 0xXXXXXXXXXXXXXXXX"); // Worker ID - enclosing
-        strongAssert(name);
-        sprintf(name, "Worker #%03d - %p", id, enclosing);
+        assert(name);
+        sprintf(name, "Worker #%03d - %p", index, enclosing); // Recuperer le nom de cet enclosing !
       }
       current = new Node(name, NULL);
-      currentNodes[id][enclosing] = current;
+      currentNodes[index][enclosing] = current;
     } else {
       current = it->second;
     }

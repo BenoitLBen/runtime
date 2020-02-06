@@ -2,8 +2,7 @@
   \ingroup HMatrix
   \brief Memory Allocation tracking.
 */
-#ifndef _MEMORY_INSTRUMENTATION_H
-#define _MEMORY_INSTRUMENTATION_H
+#pragma once
 // We use things from C++11, so test for the standard level.
 #if (__cplusplus > 199711L) || defined(HAVE_CPP11)
 #include <cstdint>
@@ -39,4 +38,3 @@ namespace mem_instr {
 #define MEMORY_INSTRUMENTATION_ENABLE do {} while (0)
 #define MEMORY_INSTRUMENTATION_DISABLE do {} while (0)
 #endif // __cplusplus > 199711L
-#endif

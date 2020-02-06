@@ -2,7 +2,7 @@
 #include <fstream>
 #include <set>
 #include <limits>
-#include <fstream>
+#include <sstream>
 
 #include "dependencies.hpp"
 #include "data.hpp"
@@ -26,8 +26,8 @@ class SyncTask : public Task {
     DummyData() : Data() {
       swappable = false;
     }
-    ssize_t pack(void** ptr) {return 0;}
-    void unpack(void* ptr, ssize_t count) {}
+    ssize_t pack(void**) {return 0;}
+    void unpack(void*, ssize_t) {}
     void deallocate() {}
     size_t size() {return 0;}
   };
@@ -44,29 +44,29 @@ public:
 
 TaskScheduler::TaskScheduler() : dataAccess(), deps(), availableTasks(NULL),
                                  succ(), postTaskExecutionMutex(), tasksLeft(0),
-                                 callback(), percentageFrequency(-1),
+                                 progressCallback(), percentageFrequency(-1),
                                  nextTaskCountWakeup(0), conditionMutex(),
-                                 condition(),
+                                 progressCondition(), rank_(0), size_(0), mpiComm_(MPI_COMM_NULL),
                                  maxMemorySize(std::numeric_limits<size_t>::max()),
-                                 totalTasks(0) {
+                                 verbose_(false), totalTasks(0) {
   // availableTasks = new EagerScheduler(&recorder);
   availableTasks = new PriorityScheduler(&recorder);
 }
 
 
 static
-int commCountForRank(const std::vector<std::pair<Data*, AccessMode> >& params,
+int commCountForRank(const toyRT_DepsArray & params,
                      int rank) {
   MpiRequestPool& mpi = MpiRequestPool::getInstance();
   int comms = 0;
   for (const auto& p : params) {
-    Data* d = p.first;
+    Data* d = (Data*)p.first;
     if ((d->rank != rank)) {
       if (mpi.cache.isValidOnNode(d, rank)) {
-        comms += (p.second == WRITE ? 1 : 0);
+        comms += (p.second == toyRT_WRITE ? 1 : 0);
       } else {
         // 2 for the write back to the reference node
-        comms += (p.second == WRITE ? 2 : 1);
+        comms += (p.second == toyRT_WRITE ? 2 : 1);
       }
     }
   }
@@ -74,12 +74,12 @@ int commCountForRank(const std::vector<std::pair<Data*, AccessMode> >& params,
 }
 
 static
-int findExecuteeNode(const std::vector<std::pair<Data*, AccessMode> >& params,
+int findExecuteeNode(const toyRT_DepsArray& params,
                      int size) {
-  int node = params[0].first->rank;
+  int node = ((Data*)params[0].first)->rank;
   for (const auto& p : params) {
-    if (p.second == WRITE) {
-      node = p.first->rank;
+    if (p.second == toyRT_WRITE) {
+      node = ((Data*)p.first)->rank;
       break;
     }
   }
@@ -97,23 +97,22 @@ int findExecuteeNode(const std::vector<std::pair<Data*, AccessMode> >& params,
 
 
 void TaskScheduler::insertMpiTask(Task* task,
-                                  const std::vector<std::pair<Data*, AccessMode> >& params,
+                                  const toyRT_DepsArray& params,
                                   int node, Priority priority) {
-  if (size == 0) {
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-  }
-  if (size == 1) {
+  assert(size_);
+  if (size_ == 1) {
     insertTask(task, params, priority);
     return;
   }
   MpiRequestPool& mpi = MpiRequestPool::getInstance();
-  int me = rank;
+  int me = rank_;
+#ifndef NDEBUG
   for (auto p : params) {
-    assert(p.first->tag != 0);
+    assert(((Data*)p.first)->tag != 0);
   }
+#endif
   if (node == -1) {
-    node = findExecuteeNode(params, size);
+    node = findExecuteeNode(params, size_);
   }
   assert(node != -1);
   Data* dummy = NULL;
@@ -123,9 +122,9 @@ void TaskScheduler::insertMpiTask(Task* task,
   // all the local dependencies as deps, and a dummy marker data which is a
   // dep of all the recv() calls.
   if (node == me) {
-    std::vector<std::pair<Data*, AccessMode> > localDeps;
+    toyRT_DepsArray localDeps;
     for (const auto& p : params) {
-      Data* d = p.first;
+      Data* d = (Data*)p.first;
       if (d->rank == me) {
         localDeps.push_back(p);
       }
@@ -133,7 +132,7 @@ void TaskScheduler::insertMpiTask(Task* task,
     if ((localDeps.size() != 0) && (localDeps.size() != params.size())) {
       SyncTask* syncTask = new SyncTask();
       dummy = syncTask->d;
-      localDeps.push_back(std::make_pair(dummy, WRITE));
+      localDeps.push_back(std::make_pair(dummy, toyRT_WRITE));
       insertTask(syncTask, localDeps);
     }
   }
@@ -142,13 +141,13 @@ void TaskScheduler::insertMpiTask(Task* task,
   // - If we are executing the task: receive the data we don't have
   // - Otherwise: Send the data we have to the relevant node'
   for (const auto& p : params) {
-    Data* d = p.first;
+    Data* d = (Data*)p.first;
     assert(d->tag != 0);
-    // If we own the data and are not the node executing the task, we send it
+    // If we own the data and we are not the node executing the task, we send it
     // to this node.
     if ((d->rank == me) && (node != me)) {
       if (!mpi.cache.isValidOnNode(d, node)) {
-        insertTask(new MpiSendTask(d, node), DEPS(1, DEP(d, READ)) , priority);
+        insertTask(new MpiSendTask(d, node), {{d, toyRT_READ}} , priority);
       }
     }
     // Else if we don't own the data and we are the node executing the task, we recv it
@@ -157,10 +156,10 @@ void TaskScheduler::insertMpiTask(Task* task,
       if (!mpi.cache.isValid(d)) {
         if (dummy) {
           insertTask(new MpiRecvTask(d, d->rank),
-                     DEPS(2, DEP(d, WRITE), DEP(dummy, READ)), priority);
+                     {{d, toyRT_WRITE}, {dummy, toyRT_READ}}, priority);
         } else {
           insertTask(new MpiRecvTask(d, d->rank),
-                     DEPS(1, DEP(d, WRITE)), priority);
+                     {{d, toyRT_WRITE}}, priority);
         }
       }
     }
@@ -179,15 +178,15 @@ void TaskScheduler::insertMpiTask(Task* task,
   // - If we are executing: send the data we wrote to & that we don't own back to their owner
   // - Otherwise: receive the data we own that the task wrote to
   for (const auto& p : params) {
-    Data* d = p.first;
-    if (p.second != WRITE) {
+    Data* d = (Data*)p.first;
+    if (p.second != toyRT_WRITE) {
       continue;
     }
     // If we own the data and are not the node executing the task, get it back.
     if ((d->rank == me) && (node != me)) {
-      insertTask(new MpiRecvTask(d, node), DEPS(1, DEP(d, WRITE)), priority);
+      insertTask(new MpiRecvTask(d, node), {{d, toyRT_WRITE}}, priority);
     } else if ((d->rank != me) && (node == me)) {
-      insertTask(new MpiSendTask(d, d->rank), DEPS(1, DEP(d, READ)), priority);
+      insertTask(new MpiSendTask(d, d->rank), {{d, toyRT_READ}}, priority);
     }
     mpi.cache.sendData(d, node, d->rank);
     mpi.cache.invalidateData(d, node);
@@ -195,7 +194,7 @@ void TaskScheduler::insertMpiTask(Task* task,
   // Free all the data we don't own right away.
   if (!mpi.cache.enabled) {
     for (const auto& p : params) {
-      mpi.cache.invalidateData(p.first);
+      mpi.cache.invalidateData((Data*)p.first);
     }
   }
 }
@@ -204,19 +203,19 @@ void TaskScheduler::insertMpiTask(Task* task,
 void TaskScheduler::getDataOnNode(Data* d, int node) {
   // TODO: Integrate this with the MPI Communication cache, to note that the
   // data was received and to avoid useless comms.
-  if (size == 1) return;
-  if (node == rank) {
-    if (d->rank != rank) {
-      insertTask(new MpiRecvTask(d, d->rank), DEPS(1, DEP(d, WRITE)));
+  if (size_ == 1) return;
+  if (node == rank_) {
+    if (d->rank != rank_) {
+      insertTask(new MpiRecvTask(d, d->rank), {{d, toyRT_WRITE}});
     }
-  } else if (d->rank == rank) {
-    insertTask(new MpiSendTask(d, node), DEPS(1, DEP(d, READ)));
+  } else if (d->rank == rank_) {
+    insertTask(new MpiSendTask(d, node), {{d, toyRT_READ}});
   }
 }
 
 
 void TaskScheduler::insertTask(Task* task,
-                               const std::vector<std::pair<Data*, AccessMode> >& params,
+                               const toyRT_DepsArray& params,
                                Priority priority) {
   totalTasks++;
   task->priority = priority;
@@ -230,8 +229,8 @@ void TaskScheduler::insertTask(Task* task,
   task->params.clear();
   task->params = params;
   for (auto& p : params) {
-    Data* param = p.first;
-    AccessMode mode = p.second;
+    Data* param = (Data*)p.first;
+    toyRT_AccessMode mode = p.second;
     assert(param);
     auto& access = dataAccess[param];
 
@@ -241,14 +240,14 @@ void TaskScheduler::insertTask(Task* task,
     }
 
     switch (mode) {
-    case READ:
+    case toyRT_READ:
       if (access.lastWrite != -1) {
         // Add a dependencies between the write and the read
         localDeps.insert(std::make_pair(access.lastWrite, task->index));
       }
       access.lastReads.push_back(task->index);
       break;
-    case WRITE:
+    case toyRT_WRITE:
       if (access.lastWrite != -1) {
         // Add a dependency between the two writes
         localDeps.insert(std::make_pair(access.lastWrite, task->index));
@@ -260,9 +259,14 @@ void TaskScheduler::insertTask(Task* task,
       access.lastReads.clear();
       access.lastWrite = task->index;
       break;
+      case toyRT_READ_WRITE:
+      case toyRT_REDUX:
+      default:
+        assert(false);
     }
   }
   for (auto& dep : localDeps) {
+    if (dep.first != dep.second) // Avoid to have a task depend on itself (may occur with duplicate dependencies in params)
     deps.push_back(dep);
   }
 }
@@ -318,11 +322,28 @@ void TaskScheduler::prepare() {
 }
 
 void TaskScheduler::stopAllWorkers() {
-  int n = (int) workerThreads.size();
-  for (int i = 0; i < n; i++) {
+  if (verbose_)
+    printf("%s TaskScheduler::stopAllWorkers (int) workerThreads.size()=%d (int) workers.size()=%d nbWorkers=%d\n", TaskScheduler::getInstance().getLocalization().c_str(), (int) workerThreads.size(), (int) workers.size(), nbWorkers);
+  for (int i = 0; i < nbWorkers; i++) {
     availableTasks->push(NULL);
   }
- }
+}
+
+std::string TaskScheduler::getLocalization() const {
+  std::ostringstream convert;
+  int i = currentId();
+
+  convert << "[proc " << rank_ << " thr " ;
+  if (i == -1)
+    convert << "MPI]";
+  else if (i == -2)
+    convert << "IO]";
+  else if (i == -3)
+    convert << "master]";
+  else
+    convert << i << "]";
+  return convert.str();
+}
 
 void TaskScheduler::postTaskExecution(Task* task) {
   std::vector<Task*> callbacks;
@@ -336,7 +357,7 @@ void TaskScheduler::startPrefetch(Task* t) {
   if (t->noPrefetch) return;
   std::lock_guard<std::mutex> guard(lruMutex);
   for (const auto& p : t->params) {
-    Data* d = p.first;
+    Data* d = (Data*)p.first;
     d->refCount++;
     lru.remove(d);
     if ((!d->prefetchInFlight) && d->swapped) {
@@ -370,12 +391,12 @@ void TaskScheduler::postTaskExecutionInternal(Task* task,
   std::lock_guard<std::mutex> guard(postTaskExecutionMutex);
   if (!task->noPrefetch) {
     for (const auto& p : task->params) {
-      Data* d = p.first;
-      AccessMode mode = p.second;
+      Data* d = (Data*)p.first;
+      toyRT_AccessMode mode = p.second;
       assert(d->refCount > 0);
       assert(!d->swapped);
       d->refCount--;
-      if (mode == AccessMode::WRITE) {
+      if (mode == toyRT_AccessMode::toyRT_WRITE) {
         d->dirty = true;
         dataSize -= d->oldSize;
         d->oldSize = d->size();
@@ -400,12 +421,12 @@ void TaskScheduler::postTaskExecutionInternal(Task* task,
     }
   }
   // Re-insert in the LRU only now to avoid removing and re-inserting things
-  // that will be used in one of the just-pushed task. We only insert data that
-  // is not going to be used right away in the LRU.
+  // that will be used in one of the just-pushed task. We only insert in the LRU the data that
+  // are not going to be used right away.
   if (!task->noPrefetch) {
     std::lock_guard<std::mutex> guard(lruMutex);
     for (const auto& p : task->params) {
-      Data* d = p.first;
+      Data* d = (Data*)p.first;
       if ((d->refCount == 0) && d->swappable) {
         lru.put(d);
       }
@@ -428,11 +449,15 @@ void TaskScheduler::notifyProgress() {
     std::unique_lock<std::mutex> lock(conditionMutex);
     nextTaskCountWakeup -= std::max((int) ((percentageFrequency / 100.)
                                            * totalTasks), 1);
-    condition.notify_one();
+    progressCondition.notify_one();
   }
 }
 
 void TaskScheduler::go(int n) {
+  assert(n > 0);
+  nbWorkers=n ;
+  if (verbose_)
+    printf("%s TaskScheduler::go nbWorkers=%d\n", TaskScheduler::getLocalization().c_str(), nbWorkers);
   recorder.tag("Prepare");
   prepare();
   recorder.tag("Go");
@@ -442,7 +467,7 @@ void TaskScheduler::go(int n) {
 
   std::thread ioThread;
   std::thread mpiThread;
-  if (size != 1) {
+  if (size_ != 1) {
     MpiRequestPool& mpi = MpiRequestPool::getInstance();
     // std::ref to avoid a copy.
     mpiThread = std::thread(&MpiRequestPool::mainLoop, std::ref(mpi));
@@ -460,24 +485,27 @@ void TaskScheduler::go(int n) {
     }
   }
 
-  workerThreads.clear();
-  for (int i = 0; i < n; i++) {
-    workerThreads.emplace_back(&Worker::mainLoop, std::ref(workers[i]));
-  }
+  if (tasksLeft != 0) {
 
-  while (tasksLeft != 0) {
-    std::unique_lock<std::mutex> lock(conditionMutex);
-    condition.wait(lock);
-    if (callback) {
-      callback(tasksLeft, totalTasks);
+    workerThreads.clear();
+    for (int i = 0; i < n; i++) {
+      workerThreads.emplace_back(&Worker::mainLoop, std::ref(workers[i]));
+    }
+
+    while (tasksLeft != 0) {
+      std::unique_lock<std::mutex> lock(conditionMutex);
+      progressCondition.wait(lock);
+      if (progressCallback) {
+        progressCallback(tasksLeft, totalTasks, callbackUserArg);
+      }
+    }
+
+    for (auto& t : workerThreads) {
+      t.join();
     }
   }
 
-  for (auto& t : workerThreads) {
-    t.join();
-  }
-
-  if (size != 1) {
+  if (size_ != 1) {
     MpiRequestPool& mpi = MpiRequestPool::getInstance();
     mpi.pleaseStop();
     mpiThread.join();
@@ -492,10 +520,12 @@ void TaskScheduler::go(int n) {
   deps.clear();
   availableTasks->clear();
   succ.clear();
+#ifndef NDEBUG
   for (auto t : tasks) {
     // Check that all tasks have been deleted.
     assert(!t);
   }
+#endif
   tasks.clear();
   tasksLeft = 0;
   totalTasks = 0;
@@ -530,11 +560,11 @@ int TaskScheduler::currentId() const {
   return -3;
 }
 
-/*! \brief Returns a worker id (-1 for the master thread, 0 for IO, 1 for MPI, >=2 for the workers)
+/*! \brief Returns a worker id (-1 for the master thread, 0 for the IO thread, 1 for the MPI thread, >=2 for the workers)
 
-    It will be called by the 'context' timer system by setting the pointer nodeIndexFunction in RuntimeEngine<T>::init().
+    It will be called by the 'context' timer system by setting the pointer nodeIndexFunction in ToyRTEngine<T>::init().
   */
-int runtimeWorkerId() {
+int toyrtWorkerId() {
   TaskScheduler& s = TaskScheduler::getInstance();
   return s.currentId()+2 ;
 }

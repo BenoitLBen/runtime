@@ -1,5 +1,4 @@
-#ifndef _DISK_HPP
-#define _DISK_HPP
+#pragma once
 #include <mutex>
 #include <condition_variable>
 #include <list>
@@ -52,4 +51,3 @@ private:
 /*! \brief Put d in the position of being the next data evicted out of memory when room is needed.
    */
 void flushToDisk(Data* d);
-#endif

@@ -1,5 +1,4 @@
-#ifndef _DEPENDENCIES_HPP
-#define _DEPENDENCIES_HPP
+#pragma once
 #include <vector>
 #include <unordered_map>
 #include <deque>
@@ -12,36 +11,14 @@
 #include "scheduler.hpp"
 #include "lru.hpp"
 #include "worker.hpp"
+#include "mpi.hpp"
 #include "common/data_recorder.hpp"
 
 class Data;
 
-/** Some compilers (for instance, ICPC 13.0) don't support initializer lists.
+int toyrtWorkerId() ;
 
-    This hacky workaround allows the runtime to compile with it.
-
-    To use the runtime with such a compiler, a list of dependencies has to be
-    declared with:
-
-    DEPS(3, DEP(d, READ), DEP(d2, WRITE), DEP(d3, READ))
-
-    Otherwise one can just use the syntax:
-
-    {{d, READ}, {d2, WRITE}, {d3, READ}}
-*/
-#if defined(__INTEL_COMPILER) && __INTEL_COMPILER <= 1300
-#define NO_CPP11_INITIALIZER_LISTS
-#endif
-
-#ifdef NO_CPP11_INITIALIZER_LISTS
-#define DEP(d, mode) std::make_pair(d, mode)
-#define DEPS(n, ...) (std::pair<Data*, AccessMode>[]) {__VA_ARGS__}, n
-#else
-#define DEP(d, mode) {d, mode}
-#define DEPS(n, ...) {__VA_ARGS__}
-#endif
-
-/** Main class for the runtime.
+/** Main class for the toyRT runtime.
 
     This class is a singleton, the only instance can be accessed using
     TaskScheduler::getInstance().
@@ -83,7 +60,8 @@ private:
   /** Number of tasks left to execute.*/
   int tasksLeft;
   /** Callback for the progress notifications. */
-  std::function<void(int, int)> callback;
+  std::function<void(int, int, void*)> progressCallback;
+  void * callbackUserArg;
   /** Frequency of the progress notifications, in %. */
   double percentageFrequency;
   /** Next value of tasksLeft where a notification will occur. */
@@ -91,15 +69,18 @@ private:
   /** mutex associated with \a condition. */
   std::mutex conditionMutex;
   /** Condition variable used to wait for the progress notification wakeup. */
-  std::condition_variable condition;
+  std::condition_variable progressCondition;
   /** Worker index -> thread Id */
   std::vector<std::thread::id> workerIds;
   /** Workers */
   std::vector<Worker> workers;
   /** Worker threads. */
   std::vector<std::thread> workerThreads;
-  /** MPI rank in MPI_COMM_WORLD and size of the communicator. */
-  int rank, size;
+  /** Number of workers. */
+  int nbWorkers;
+  /** MPI rank in mpiComm_ and size of the communicator. */
+  int rank_, size_;
+  MPI_Comm mpiComm_;
 
 public:
   /** Maximum total data size before starting to swap. Defaults to unlimited. */
@@ -116,6 +97,7 @@ private:
   TimedDataRecorder<size_t> writtenDataRecorder;
   TimedDataRecorder<size_t> readDataRecorder;
 
+  bool verbose_;
 public:
   /** Total number of inserted tasks. */
   int totalTasks;
@@ -138,13 +120,13 @@ public:
       @param priority priority of the task
    */
   void insertMpiTask(Task* task,
-                     const std::vector<std::pair<Data*, AccessMode> >& params,
+                     const toyRT_DepsArray& params,
                      int node = -1, Priority priority = Priority::NORMAL);
 #ifdef NO_CPP11_INITIALIZER_LISTS
   void insertMpiTask(Task* task,
-                     const std::pair<Data*, AccessMode> params[], int n,
+                     const std::pair<Data*, toyRT_AccessMode> params[], int n,
                      int node = -1, Priority priority = Priority::NORMAL) {
-    std::vector<std::pair<Data*, AccessMode> > deps(params, params + n);
+    toyRT_DepsArray deps(params, params + n);
     insertMpiTask(task, deps, node, priority);
   }
 #endif
@@ -159,13 +141,13 @@ public:
       @param priority priority of the task
    */
   void insertTask(Task* task,
-                  const std::vector<std::pair<Data*, AccessMode> >& params,
+                  const toyRT_DepsArray& params,
                   Priority priority = Priority::NORMAL);
 #ifdef NO_CPP11_INITIALIZER_LISTS
   void insertTask(Task* task,
-                  const std::pair<Data*, AccessMode> params[], int n,
+                  const std::pair<Data*, toyRT_AccessMode> params[], int n,
                   Priority priority = Priority::NORMAL) {
-    std::vector<std::pair<Data*, AccessMode> > deps(params, params + n);
+    toyRT_DepsArray deps(params, params + n);
     insertTask(task, deps, priority);
   }
 #endif
@@ -201,11 +183,28 @@ public:
       @param _callback the callback
       @param _percentageFrequency the frequency in % of the total number of tasks
    */
-  void setProgressCallback(std::function<void(int, int)> _callback,
-                           double _percentageFrequency) {
-    callback = _callback;
+  void setProgressCallback(std::function<void(int, int, void *)> _callback,
+                           double _percentageFrequency, void * userArg) {
+    progressCallback = _callback;
+    callbackUserArg = userArg;
     percentageFrequency = _percentageFrequency;
   };
+  /** Set the MPI Communicator and initializes rank and size
+     */
+  void setMpiComm(const MPI_Comm & c) {
+    mpiComm_ = c;
+    MPI_Comm_size(mpiComm_, &size_);
+    MPI_Comm_rank(mpiComm_, &rank_);
+  }
+  int getMpiRank() {
+    return rank_;
+  }
+  int getMpiSize() {
+    return size_;
+  }
+  MPI_Comm & getMpiComm() {
+    return mpiComm_;
+  }
   /** Return the index of the current worker thread. */
   int currentId() const;
   /** Write the timeline to a JSON file.
@@ -214,12 +213,18 @@ public:
   */
   void dumpTimeline(const char* filename) const;
 
+  /** Get the verbosity flag
+     */
+  bool verbose() const {
+    return verbose_;
+  }
 public:
   /** Get the instance of TaskScheduler. */
   static TaskScheduler& getInstance() {
     static TaskScheduler s;
     return s;
   }
+  std::string getLocalization() const ;
 
 private:
   /** Prepare the dependencies and the initial available tasks.
@@ -245,5 +250,3 @@ public:
   // Remove a Data from the data tracking.
   void unregisterData(Data* d);
 };
-#endif
-

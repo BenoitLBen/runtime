@@ -1,5 +1,4 @@
-#ifndef _TASK_HPP
-#define _TASK_HPP
+#pragma once
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -9,18 +8,17 @@
 
 class TaskTimeline;
 
-/** Access mode for the data used by the task scheduler.
- */
-enum AccessMode {
-  READ = 1 << 0,
-  WRITE = 1 << 1,
-};
-
 class Data;
 
 /** Set of priorities for the tasks */
 #define PRIORITIES 3
 enum Priority {LOW = 2, NORMAL = 1, HIGH = 0};
+
+/** Access mode for the data used by the task scheduler.
+ */
+enum toyRT_AccessMode {toyRT_READ, toyRT_WRITE, toyRT_READ_WRITE, toyRT_REDUX, toyRT_UNDEFINED};
+
+typedef std::vector<std::pair<const void*, toyRT_AccessMode> > toyRT_DepsArray;
 
 class Task {
   friend class TaskScheduler;
@@ -37,9 +35,9 @@ public:
   }
 
 private:
-  std::vector<std::pair<Data*, AccessMode> > params;
+  toyRT_DepsArray params;
   int index;
-  void* enclosingContext;
+  void* submittingContext; // Node where the task is created (and probably submitted)
 
 protected:
   /*! \brief Tells if the "post-execution" process must be done after this task
@@ -67,13 +65,13 @@ public:
 
 public:
   Task(std::string _name = "Task") : index(-1),
-                                     enclosingContext(trace::Node::currentReference()),
+                                     submittingContext(trace::Node::currentReference()),
                                      doPostExecution(true), isCallback(false),
                                      noPrefetch(false), name(_name), priority(NORMAL) {}
   virtual ~Task() {}
+  std::string description() const;
 protected:
   virtual void call() = 0;
 };
 
 typedef Task* TaskPtr;
-#endif

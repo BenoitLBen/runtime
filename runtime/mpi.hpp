@@ -1,5 +1,5 @@
-#ifndef _RUNTIME_MPI_HPP
-#define _RUNTIME_MPI_HPP
+#pragma once
+
 #include <mpi.h>
 
 #include <list>
@@ -57,7 +57,7 @@ public:
  */
 class MpiDataCache {
 private:
-  /** Rank in MPI_COMM_WORLD and size of it. */
+  /** Rank in GlobalParallelSettings::getMpiComm() and size of it. */
   int rank, size;
   /** validOnNode[data][node] */
   std::unordered_map<Data*, std::vector<bool> > validOnNode;
@@ -70,6 +70,14 @@ public:
   /** Create the cache tracking structures.
    */
   MpiDataCache();
+  /** Remove a Data pointer from the map validOnNode
+
+      This function must be called before deallocating the Data in unregister()
+      or further call to invalidateData() might crash.
+
+      @param d Data to remove
+   */
+  void eraseData(Data* d) ;
   /** Note that some data was sent to a node.
 
       This function must be called on all nodes.
@@ -180,7 +188,7 @@ private:
   /** Requests that are waiting for a send to complete before being issued. */
   std::map<RequestId, std::deque<Request*> > waiting;
 
-  /** rank and size in/of MPI_COMM_WORLD */
+  /** rank and size in/of GlobalParallelSettings::getMpiComm() */
   int rank, size;
 
   /** Record the volume of sent and received data */
@@ -249,5 +257,4 @@ private:
   MpiRequestPool(const MpiRequestPool&) {} // No copy
   ~MpiRequestPool();
 };
-#endif
 

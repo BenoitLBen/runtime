@@ -41,18 +41,6 @@ public:
   }
 };
 
-class DeallocateTask : public Task {
-private:
-  Data* d;
-
-public:
-  DeallocateTask(Data* d) : Task("Deallocate"), d(d) {
-    isCallback = true;
-  }
-  void call() {
-    d->deallocate();
-  }
-};
 }
 
 /** File IO Backend.
@@ -65,7 +53,7 @@ private:
 
 private:
   void createBaseDirectory(const char* directory) {
-    const char* pattern = "/runtime_ooc_XXXXXX";
+    const char* pattern = "/toyrt_ooc_XXXXXX";
     basedirName = (char*) calloc(strlen(directory) + strlen(pattern) + 1, 1);
     assert(basedirName);
     sprintf(basedirName, "%s%s", directory, pattern);
@@ -184,7 +172,6 @@ void IoThread::pleaseStop() {
 }
 
 void IoThread::processRequest(Request* r) {
-  TaskScheduler& s = TaskScheduler::getInstance();
   switch (r->type) {
   case READ:
     {
@@ -213,6 +200,9 @@ void IoThread::processRequest(Request* r) {
 
 void IoThread::mainLoop() {
   myId = std::this_thread::get_id();
+  {
+    DECLARE_CONTEXT;
+
   bool shouldStop = false;
   bool shouldReallyStop = false;
   while (!shouldReallyStop) {
@@ -237,6 +227,7 @@ void IoThread::mainLoop() {
     }
     lock.unlock();
   }
+  }
   myId = static_cast<std::thread::id>(0);
 }
 
@@ -249,5 +240,5 @@ IoThread::~IoThread() {
 }
 
 void flushToDisk(Data* d) {
-  TaskScheduler::getInstance().insertTask(new FlushTask(d), DEPS(1, DEP(d, WRITE)));
+  TaskScheduler::getInstance().insertTask(new FlushTask(d), {{d, toyRT_WRITE}});
 }

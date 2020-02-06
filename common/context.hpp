@@ -2,27 +2,14 @@
   \ingroup HMatrix
   \brief Context manager used for the tracing functionnality.
 */
-#ifndef _CONTEXT_HPP
-#define _CONTEXT_HPP
+#pragma once
 
 #include "config.h"
-
-#if defined(__GNUC__)
-#define MPF_FUNC __PRETTY_FUNCTION__
-#elif defined(_MSC_VER)
-#define MPF_FUNC __FUNCTION__ // or perhaps __FUNCDNAME__ + __FUNCSIG__
-#else
-#define MPF_FUNC __func__
-#endif
 
 #include <chrono>
 #include <vector>
 #include <fstream>
 #include <unordered_map>
-
-#ifdef HAVE_STARPU
-#include <starpu.h>
-#endif
 
 /** New StarPU-aware tracing contexts.
 
@@ -44,11 +31,9 @@ namespace trace {
     Time lastCommInitiationTime;
   };
 
-#ifdef HAVE_STARPU
-#define MAX_ROOTS (STARPU_NMAXWORKERS + 1)
-#else
-  // 128 workers ought to be enough for anybody... or not
-#define MAX_ROOTS 128
+  // Maximum number of parallel workers + 1 (for the main non-parallel context)
+#ifndef MAX_ROOTS
+  #define MAX_ROOTS 128
 #endif
 
   /** Set the function tasked with returning the current root index.
@@ -69,7 +54,7 @@ namespace trace {
     static bool enabled;
   private:
     /// Unique name for the context.
-    const char* name;
+    const char* name_;
     /// Tracing data associated with this node.
     NodeData data;
     /// Parent node. NULL for a root.
@@ -83,7 +68,7 @@ namespace trace {
   public:
     /** Enter a context noted by a name.
      */
-    static void enterContext(const char* name);
+    static void enterContext(const char* name_);
     /** Leave the current context.
      */
     static void leaveContext();
@@ -102,13 +87,13 @@ namespace trace {
     static void endComm();
     /** Dumps the trace trees to a JSON file.
      */
-    static void jsonDump(const char* filename);
+    static void jsonDumpMain(const char* filename);
 
   private:
     Node(const char* _name, Node* _parent);
     ~Node();
     Node* findChild(const char* name) const;
-    void dump(std::ofstream& f) const;
+    void jsonDump(std::ofstream& f) const;
     static Node* currentNode();
   };
 }
@@ -133,7 +118,7 @@ public:
 #define enter_context(x) trace::Node::enterContext(x)
 #define leave_context() trace::Node::leaveContext()
 #define increment_flops(x) trace::Node::incrementFlops(x)
-#define tracing_dump(x) trace::Node::jsonDump(x)
+#define tracing_dump(x) trace::Node::jsonDumpMain(x)
 
 /*! \brief Simple wrapper around enter/leave_context() to avoid
 having to put leave_context() before each return statement. */
@@ -146,5 +131,12 @@ public:
     leave_context();
   }
 };
-#define DECLARE_CONTEXT Context __reserved_ctx((MPF_FUNC))
+
+#if defined(__GNUC__)
+#define DECLARE_CONTEXT Context __reserved_ctx(__PRETTY_FUNCTION__)
+#elif defined(_MSC_VER)
+#define DECLARE_CONTEXT Context __reserved_ctx(__FUNCTION__)
+#else
+#define DECLARE_CONTEXT Context __reserved_ctx(__func__)
 #endif
+

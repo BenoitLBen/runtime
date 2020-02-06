@@ -1,5 +1,4 @@
-#ifndef _WORKER_HPP
-#define _WORKER_HPP
+#pragma once
 #include "task.hpp"
 #include "task_timeline.hpp"
 
@@ -27,9 +26,8 @@ public:
 
 private:
   // No copy. Required to quiet icpc.
-  Worker& operator=(const Worker& o) {
+  Worker& operator=(const Worker&) {
     assert(false);
     return *this;
-  };
+  }
 };
-#endif
