@@ -7,7 +7,7 @@
 #include "mpi.hpp"
 #include "data.hpp"
 #include "dependencies.hpp"
-#include "common/memory_instrumentation.hpp"
+#include "context/memory_instrumentation.hpp"
 
 #include <iostream>
 

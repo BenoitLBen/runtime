@@ -12,7 +12,7 @@
 #include "lru.hpp"
 #include "worker.hpp"
 #include "mpi.hpp"
-#include "common/data_recorder.hpp"
+#include "context/data_recorder.hpp"
 
 class Data;
 

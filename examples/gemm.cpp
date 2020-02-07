@@ -10,7 +10,7 @@
 #include "data.hpp"
 #include "task.hpp"
 #include "dependencies.hpp"
-#include "common/context.hpp"
+#include "context/context.hpp"
 
 typedef double scalar_t;
 
