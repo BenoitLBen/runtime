@@ -1,4 +1,4 @@
-#  Runtime-OSS (Runtime library, open source software)
+#  ToyRT (Runtime library, open source software)
 #
 # Set label_VERSION to the git version
 

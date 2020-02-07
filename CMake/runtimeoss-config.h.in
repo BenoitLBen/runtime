@@ -1,9 +1,0 @@
-/*
-  Runtimeoss (Runtime library, open source software)
-*/
-
-#pragma once
-#ifndef __RUNTIMEOSS_CONFIG_H
-#define __RUNTIMEOSS_CONFIG_H
-#define RUNTIMEOSS_VERSION "@RUNTIMEOSS_VERSION@"
-#endif

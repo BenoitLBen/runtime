@@ -1,0 +1,9 @@
+/*
+  ToyRT (Runtime library, open source software)
+*/
+
+#pragma once
+#ifndef __TOYRT_CONFIG_H
+#define __TOYRT_CONFIG_H
+#define TOYRT_VERSION "@TOYRT_VERSION@"
+#endif

@@ -67,8 +67,8 @@ backgroundcolor=\color{lbcolor},
 \newtheorem{defi}[thm]{Définition}
 
 
-\title{Runtime: Moteur d'exécution}
-\author{Airbus Group Innovations}
+\title{Le Moteur d'exécution \textsc{ToyRT}}
+\author{Airbus Central R\&T / Inria Bordeaux Sud-Ouest}
 
 \begin{document}
 \maketitle
@@ -86,7 +86,7 @@ backgroundcolor=\color{lbcolor},
 
 
 \begin{abstract}
-  Ce document donne des détails sur les principes de base et les algorithmes implémentés dans \textsc{runtime}, un moteur d'exécution utilisé par la bibliothèque \texttt{hmat}.
+  Ce document donne des détails sur les principes de base et les algorithmes implémentés dans \textsc{ToyRT}, un moteur d'exécution utilisé par la bibliothèque \texttt{hmat}.
 \end{abstract}
 
 \tableofcontents
@@ -123,7 +123,7 @@ backgroundcolor=\color{lbcolor},
 
 \section{Introduction}
 \label{sec:introduction}
-\textsc{runtime} est un moteur d'exécution basé sur le modèle de graphe de tâches énuméré, similaire à celui utilisé par Quark et StarPU.
+\textsc{ToyRT} est un moteur d'exécution basé sur le modèle de graphe de tâches énuméré, similaire à celui utilisé par Quark et StarPU.
 Il présente les caractéristiques suivantes~:~
 \begin{itemize}
 \item Mémoire partagée~;
@@ -233,7 +233,7 @@ L'exécution parallèle des tâches du graphe de la figure~\ref{fig:exemple-dag}
 Une tâche $t_i$ est considérée éligible pour exécution si toutes ses dépendances $\{t_{i'} \ |\ (i', i) \in A\}$ ont été exécutées.
 Dans ce cas, l'exécution parallèle du graphe de tâches respecte la contrainte de cohérence séquentielle, et le résultat est le même quel que soit le nombre de processeurs.
 Une propriété supplémentaire intéressante est même obtenue~:~les résultats sont dits exactement reproductibles.
-Cette garantie n'est cependant plus valable dans le cas de l'utilisation d'extensions de ce formalisme, comme par exemple les réductions (qui ne sont pas supportées par \texttt{runtime}), les opérations de la norme IEEE-754 n'étant pas associative.
+Cette garantie n'est cependant plus valable dans le cas de l'utilisation d'extensions de ce formalisme, comme par exemple les réductions (qui ne sont pas supportées par \textsc{ToyRT}), les opérations de la norme IEEE-754 n'étant pas associative.
 
 
 \subsection{Moteur d'exécution}
@@ -371,7 +371,7 @@ Chaque \emph{worker} est un \emph{thread}, créé et terminé dans \texttt{go()}
 Dans cet algorithme, la fonction \textsc{UpdateDependencies} est la fonction responsable de la mise à jour des structures de dépendances.
 Plus précisément, elle retire la tâche $t$ du graphe de tâches, et ajoute les tâches nouvellement éligibles à la file d'attente.
 
-\section{Runtime}
+\section{ToyRT}
 \label{sec:runtime}
 Le moteur d'exécution est écrit en C++11, et n'a de dépendance que sur un compilateur C++11, la STL associée et MPI pour la mémoire distribuée.
 Il repose essentiellement sur les classes suivantes~:~
@@ -395,7 +395,7 @@ De plus, la gestion de MPI et de l'OOC a nécessité l'ajout d'une classe \textt
 
 \subsubsection{Tâches}
 \label{sec:taches}
-Les tâches sont dans \textsc{runtime} des classes dérivées de la classe \texttt{Task}, une classe abstraite de base, dont les éléments publics sont~:~
+Les tâches sont dans \textsc{ToyRT} des classes dérivées de la classe \texttt{Task}, une classe abstraite de base, dont les éléments publics sont~:~
 \begin{lstlisting}
 class Task {
 public:

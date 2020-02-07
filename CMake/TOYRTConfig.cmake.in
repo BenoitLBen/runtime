@@ -1,0 +1,27 @@
+#  ToyRT (Runtime library, open source software)
+#
+
+# - Config file for the TOYRT package
+# It defines the following variables
+#  TOYRT_INCLUDE_DIRS - include directories for TOYRT
+#  TOYRT_LIBRARY_DIRS - library directories for TOYRT (normally not used!)
+#  TOYRT_LIBRARIES    - libraries to link against
+#  TOYRT_EXECUTABLE   - the bar executable
+#  TOYRT_DEFINITIONS  - List of compilation flags -DTOTO to export
+
+# Tell the user project where to find our headers and libraries
+
+set(TOYRT_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/@RELATIVE_TOYRT_INCLUDE_DIRS@;@MPI_INCLUDE_PATH@")
+set(TOYRT_LIBRARY_DIRS "${CMAKE_CURRENT_LIST_DIR}/@RELATIVE_TOYRT_LIB_DIR@")
+
+# Allows loading TOYRT settings from another project
+set(TOYRT_CONFIG_FILE "${CMAKE_CURRENT_LIST_FILE}")
+
+# List of compilation flags -DTOTO to export
+set(TOYRT_DEFINITIONS @TOYRT_DEFINITIONS@)
+
+# Our library dependencies (contains definitions for IMPORTED targets)
+include("${CMAKE_CURRENT_LIST_DIR}/TOYRTLibraryDepends.cmake")
+
+# These are IMPORTED targets created by TOYRTLibraryDepends.cmake
+set(TOYRT_LIBRARIES runtimeoss)
