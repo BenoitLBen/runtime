@@ -27,7 +27,7 @@ def consumptionTimeline(memory):
     """Compute the total memory consumption timeline.
     """
     result = np.copy(memory)
-    result[:, 1] = np.cumsum(memory[:, 1])
+    result[:, 2] = np.cumsum(memory[:, 2])
     return result
 
 

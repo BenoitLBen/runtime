@@ -101,6 +101,7 @@ public:
   }
 
   void scale(const scalar_t alpha) {
+    DECLARE_CONTEXT;
     if (alpha == 1.) {
       return;
     }
@@ -116,6 +117,7 @@ public:
 
   // this <- alpha.a.b + beta.this
   void gemm(const scalar_t alpha, const Matrix& a, const Matrix& b, const scalar_t beta) {
+    DECLARE_CONTEXT;
     Matrix& c = *this;
     assert(a.mat != c.mat);
     assert(b.mat != c.mat);
@@ -249,10 +251,12 @@ public:
 
 void runtimeGemm(Matrix** c, scalar_t alpha, Matrix** a, Matrix** b,
                  scalar_t beta, int nTiles)  {
+  DECLARE_CONTEXT;
   int nnTiles = nTiles * nTiles;
   std::vector<MatrixData> cData(c, c + nnTiles), aData(a, a + nnTiles),
     bData(b, b + nnTiles);
   TaskScheduler& s = TaskScheduler::getInstance();
+  s.setMpiComm(MPI_COMM_WORLD);
   for (int j = 0; j < nTiles; j++) {
     for (int i = 0; i < nTiles; i++) {
       Matrix& c_ij = *c[i + j * nTiles];
@@ -270,6 +274,10 @@ void runtimeGemm(Matrix** c, scalar_t alpha, Matrix** a, Matrix** b,
 
 
 int main(int argc, char** argv) {
+  {
+    DECLARE_CONTEXT;
+    tracing_set_worker_index_func(toyrtWorkerId);
+
   MPI_Init(&argc, &argv);
   if (argc != 3) {
     std::cout << "Usage: " << argv[0] << " N ntiles" << std::endl;
@@ -309,5 +317,8 @@ int main(int argc, char** argv) {
   std::cout << "Checking result... "<< std::endl;
   assert(c.almostEquals(c2, 1e-15));
   assert(c == c2);
+  }
+  tracing_dump("gemm_trace.json");
+
   return 0;
 }

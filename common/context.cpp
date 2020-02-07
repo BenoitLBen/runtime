@@ -46,6 +46,7 @@ namespace trace {
   }
 
   void Node::enterContext(const char* name) {
+    if (!enabled) return;
     Node* current = currentNode();
     assert(current);
     Node* child = current->findChild(name);
@@ -64,6 +65,7 @@ namespace trace {
   }
 
   void Node::leaveContext() {
+    if (!enabled) return;
     int index = currentNodeIndex();
     void* enclosing = enclosingContext[index];
     Node* current = currentNodes[index][enclosing];
@@ -163,13 +165,17 @@ namespace trace {
     auto it = currentNodes[index].find(enclosing);
     Node* current;
     if (it == currentNodes[index].end()) {
-      // TODO : avec toyrt, les threads 1 et 2 ne sont pas des workers, ce sont les threads IO & MPI
-      // Il faudrait que le code appelant donne le nom du noeud plutot qu'un index
       char *name = const_cast<char*>("root");
       if (index != 0) {
         name = strdup("Worker #XXX - 0xXXXXXXXXXXXXXXXX"); // Worker ID - enclosing
         assert(name);
-        sprintf(name, "Worker #%03d - %p", index, enclosing); // Recuperer le nom de cet enclosing !
+        // Avec toyrt, les threads 1 et 2 ne sont pas des workers, ce sont les threads IO & MPI
+        if (index==1)
+          sprintf(name, "Worker IO - %p", enclosing);
+        else if (index==2)
+          sprintf(name, "Worker MPI - %p", enclosing);
+        else
+          sprintf(name, "Worker #%03d - %p", index-2, enclosing);
       }
       current = new Node(name, NULL);
       currentNodes[index][enclosing] = current;

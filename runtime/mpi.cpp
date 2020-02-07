@@ -246,15 +246,15 @@ void MpiRequestPool::pushDetachedRequest(Request* r) {
 }
 
 void MpiRequestPool::mainLoop() {
+  myId = std::this_thread::get_id();
+  {
+    DECLARE_CONTEXT;
   int initialized;
   MPI_Initialized(&initialized);
   if (!initialized) {
     int provided;
     MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
   }
-  myId = std::this_thread::get_id();
-  {
-    DECLARE_CONTEXT;
 
     bool shouldStop = false; // Moves to true when a NULL task is poped
   bool shouldReallyStop = shouldStop;
