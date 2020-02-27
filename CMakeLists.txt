@@ -95,8 +95,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # ============================
 
 # Sources
-file(GLOB_RECURSE TOYRT_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} runtime/*.*pp)
-file(GLOB_RECURSE CONTEXTOSS_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} common/*.*pp)
+file(GLOB_RECURSE TOYRT_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} toyrt/*.*pp)
+file(GLOB_RECURSE CONTEXTOSS_SOURCES RELATIVE ${PROJECT_SOURCE_DIR} context/*.*pp)
 
 link_directories(${PROJECT_BINARY_DIR})
 
@@ -151,11 +151,11 @@ install(TARGETS toyrt
     )
 
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/toyrt DESTINATION "${INSTALL_INCLUDE_DIR}" COMPONENT Development)
-install(FILES runtime/dependencies.hpp;runtime/data.hpp;runtime/disk.hpp;runtime/lru.hpp;runtime/mpi.hpp;runtime/scheduler.hpp;runtime/task.hpp;runtime/task_timeline.hpp;runtime/worker.hpp DESTINATION "${INSTALL_INCLUDE_DIR}/toyrt" COMPONENT Development)
+install(FILES toyrt/dependencies.hpp;toyrt/data.hpp;toyrt/disk.hpp;toyrt/lru.hpp;toyrt/mpi.hpp;toyrt/scheduler.hpp;toyrt/task.hpp;toyrt/task_timeline.hpp;toyrt/worker.hpp DESTINATION "${INSTALL_INCLUDE_DIR}/toyrt" COMPONENT Development)
 
 # Examples
 include_directories(
-  ${PROJECT_SOURCE_DIR}/runtime/
+  ${PROJECT_SOURCE_DIR}/toyrt/
   ${PROJECT_SOURCE_DIR}/
   )
 
