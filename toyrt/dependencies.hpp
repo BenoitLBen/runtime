@@ -2,6 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #include <deque>
+#include <memory>
 #include <mutex>
 #include <functional>
 #include <condition_variable>
@@ -40,7 +41,7 @@ class TaskScheduler {
 private:
   /** Live and dead pointers to the tasks. This is used to match a task index to
       a Task* */
-  std::vector<Task*> tasks;
+  std::vector<std::unique_ptr<Task>> tasks;
   /** Last accesses to the data. */
   std::unordered_map<Data*, AccessTracker> dataAccess;
   /** task index -> task index dependencies. */
@@ -49,7 +50,7 @@ private:
   TimedDataRecorder<int> recorder;
   /** Scheduler. This is a pointer to be able to dynamically swap the actual
       scheduler type. */
-  Scheduler* availableTasks;
+  std::unique_ptr<Scheduler> availableTasks;
   /** For each (referenced by its index), record the in-degree and the out
       edges. */
   std::vector<TaskSuccessors> succ;
@@ -89,6 +90,8 @@ public:
   Lru<Data> lru;
   /** Mutex protecting the accesses to the LRU. */
   std::mutex lruMutex;
+  /** Total number of inserted tasks. */
+  int totalTasks;
 
 private:
   /** Total size of all the known data. */
@@ -97,14 +100,10 @@ private:
   TimedDataRecorder<size_t> writtenDataRecorder;
   TimedDataRecorder<size_t> readDataRecorder;
 
-  bool verbose_;
-public:
-  /** Total number of inserted tasks. */
-  int totalTasks;
+  const bool verbose_;
 
 public:
   ~TaskScheduler() {
-    delete availableTasks;
     // We always record this, in the same file.
     // TODO: Make the recording optional (and disabled by default)
     recorder.toFile("tasks.txt");
@@ -113,6 +112,8 @@ public:
   /** Insert a task in an MPI cluster.
 
       The Task ownership is transfered to the TaskScheduler instance.
+      Note: Here and below, the non-unique_ptr<> version is kept for
+      compatibility only.
 
       @param task task to execute
       @param params Parameters and access modes
@@ -120,6 +121,9 @@ public:
       @param priority priority of the task
    */
   void insertMpiTask(Task* task,
+                     const toyRT_DepsArray& params,
+                     int node = -1, Priority priority = Priority::NORMAL);
+  void insertMpiTask(std::unique_ptr<Task> task,
                      const toyRT_DepsArray& params,
                      int node = -1, Priority priority = Priority::NORMAL);
   /** Insert a task in shared memory.
@@ -133,6 +137,9 @@ public:
       @param priority priority of the task
    */
   void insertTask(Task* task,
+                  const toyRT_DepsArray& params,
+                  Priority priority = Priority::NORMAL);
+  void insertTask(std::unique_ptr<Task> task,
                   const toyRT_DepsArray& params,
                   Priority priority = Priority::NORMAL);
   /** Submit an asynchronous data request for a data on a node.
