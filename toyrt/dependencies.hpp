@@ -122,14 +122,6 @@ public:
   void insertMpiTask(Task* task,
                      const toyRT_DepsArray& params,
                      int node = -1, Priority priority = Priority::NORMAL);
-#ifdef NO_CPP11_INITIALIZER_LISTS
-  void insertMpiTask(Task* task,
-                     const std::pair<Data*, toyRT_AccessMode> params[], int n,
-                     int node = -1, Priority priority = Priority::NORMAL) {
-    toyRT_DepsArray deps(params, params + n);
-    insertMpiTask(task, deps, node, priority);
-  }
-#endif
   /** Insert a task in shared memory.
 
       @warning Do not use on an MPI cluster
@@ -143,14 +135,6 @@ public:
   void insertTask(Task* task,
                   const toyRT_DepsArray& params,
                   Priority priority = Priority::NORMAL);
-#ifdef NO_CPP11_INITIALIZER_LISTS
-  void insertTask(Task* task,
-                  const std::pair<Data*, toyRT_AccessMode> params[], int n,
-                  Priority priority = Priority::NORMAL) {
-    toyRT_DepsArray deps(params, params + n);
-    insertTask(task, deps, priority);
-  }
-#endif
   /** Submit an asynchronous data request for a data on a node.
 
       @param d Data to get
