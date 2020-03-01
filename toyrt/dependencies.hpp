@@ -1,23 +1,23 @@
 #pragma once
-#include <vector>
-#include <unordered_map>
+#include <condition_variable>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <mutex>
-#include <functional>
-#include <condition_variable>
 #include <thread>
+#include <unordered_map>
+#include <vector>
 
-#include "task.hpp"
-#include "scheduler.hpp"
-#include "lru.hpp"
-#include "worker.hpp"
-#include "mpi.hpp"
 #include "context/data_recorder.hpp"
+#include "lru.hpp"
+#include "mpi.hpp"
+#include "scheduler.hpp"
+#include "task.hpp"
+#include "worker.hpp"
 
 class Data;
 
-int toyrtWorkerId() ;
+int toyrtWorkerId();
 
 /** Main class for the toyRT runtime.
 
@@ -27,7 +27,7 @@ int toyrtWorkerId() ;
 class TaskScheduler {
   /// Tasks successors: the in-degree and the out edges
   struct TaskSuccessors {
-    int count; // number of predecessors
+    int count;  // number of predecessors
     std::deque<int> successors;
   };
   /// Tracker for the last read and write dependency on some data.
@@ -38,14 +38,14 @@ class TaskScheduler {
     AccessTracker() : lastWrite(-1), lastReads() {}
   };
 
-private:
+ private:
   /** Live and dead pointers to the tasks. This is used to match a task index to
       a Task* */
   std::vector<std::unique_ptr<Task>> tasks;
   /** Last accesses to the data. */
   std::unordered_map<Data*, AccessTracker> dataAccess;
   /** task index -> task index dependencies. */
-  std::vector<std::pair<int, int> > deps;
+  std::vector<std::pair<int, int>> deps;
   /** Record the available tasks. */
   TimedDataRecorder<int> recorder;
   /** Scheduler. This is a pointer to be able to dynamically swap the actual
@@ -62,7 +62,7 @@ private:
   int tasksLeft;
   /** Callback for the progress notifications. */
   std::function<void(int, int, void*)> progressCallback;
-  void * callbackUserArg;
+  void* callbackUserArg;
   /** Frequency of the progress notifications, in %. */
   double percentageFrequency;
   /** Next value of tasksLeft where a notification will occur. */
@@ -83,7 +83,7 @@ private:
   int rank_, size_;
   MPI_Comm mpiComm_;
 
-public:
+ public:
   /** Maximum total data size before starting to swap. Defaults to unlimited. */
   size_t maxMemorySize;
   /** Least recently used Data instances */
@@ -93,7 +93,7 @@ public:
   /** Total number of inserted tasks. */
   int totalTasks;
 
-private:
+ private:
   /** Total size of all the known data. */
   size_t dataSize;
   TimedDataRecorder<size_t> dataSizeRecorder;
@@ -102,7 +102,7 @@ private:
 
   const bool verbose_;
 
-public:
+ public:
   ~TaskScheduler() {
     // We always record this, in the same file.
     // TODO: Make the recording optional (and disabled by default)
@@ -120,11 +120,9 @@ public:
       @param node node to execute the task on
       @param priority priority of the task
    */
-  void insertMpiTask(Task* task,
-                     const toyRT_DepsArray& params,
-                     int node = -1, Priority priority = Priority::NORMAL);
-  void insertMpiTask(std::unique_ptr<Task> task,
-                     const toyRT_DepsArray& params,
+  void insertMpiTask(Task* task, const toyRT_DepsArray& params, int node = -1,
+                     Priority priority = Priority::NORMAL);
+  void insertMpiTask(std::unique_ptr<Task> task, const toyRT_DepsArray& params,
                      int node = -1, Priority priority = Priority::NORMAL);
   /** Insert a task in shared memory.
 
@@ -136,11 +134,9 @@ public:
       @param params Parameters and access mode
       @param priority priority of the task
    */
-  void insertTask(Task* task,
-                  const toyRT_DepsArray& params,
+  void insertTask(Task* task, const toyRT_DepsArray& params,
                   Priority priority = Priority::NORMAL);
-  void insertTask(std::unique_ptr<Task> task,
-                  const toyRT_DepsArray& params,
+  void insertTask(std::unique_ptr<Task> task, const toyRT_DepsArray& params,
                   Priority priority = Priority::NORMAL);
   /** Submit an asynchronous data request for a data on a node.
 
@@ -172,30 +168,25 @@ public:
       tunable frequency, in percentage of total completion.
 
       @param _callback the callback
-      @param _percentageFrequency the frequency in % of the total number of tasks
+      @param _percentageFrequency the frequency in % of the total number of
+     tasks
    */
-  void setProgressCallback(std::function<void(int, int, void *)> _callback,
-                           double _percentageFrequency, void * userArg) {
+  void setProgressCallback(std::function<void(int, int, void*)> _callback,
+                           double _percentageFrequency, void* userArg) {
     progressCallback = _callback;
     callbackUserArg = userArg;
     percentageFrequency = _percentageFrequency;
   };
   /** Set the MPI Communicator and initializes rank and size
-     */
-  void setMpiComm(const MPI_Comm & c) {
+   */
+  void setMpiComm(const MPI_Comm& c) {
     mpiComm_ = c;
     MPI_Comm_size(mpiComm_, &size_);
     MPI_Comm_rank(mpiComm_, &rank_);
   }
-  int getMpiRank() {
-    return rank_;
-  }
-  int getMpiSize() {
-    return size_;
-  }
-  MPI_Comm & getMpiComm() {
-    return mpiComm_;
-  }
+  int getMpiRank() { return rank_; }
+  int getMpiSize() { return size_; }
+  MPI_Comm& getMpiComm() { return mpiComm_; }
   /** Return the index of the current worker thread. */
   int currentId() const;
   /** Write the timeline to a JSON file.
@@ -205,19 +196,18 @@ public:
   void dumpTimeline(const char* filename) const;
 
   /** Get the verbosity flag
-     */
-  bool verbose() const {
-    return verbose_;
-  }
-public:
+   */
+  bool verbose() const { return verbose_; }
+
+ public:
   /** Get the instance of TaskScheduler. */
   static TaskScheduler& getInstance() {
     static TaskScheduler s;
     return s;
   }
-  std::string getLocalization() const ;
+  std::string getLocalization() const;
 
-private:
+ private:
   /** Prepare the dependencies and the initial available tasks.
    */
   void prepare();
@@ -228,7 +218,7 @@ private:
   void evict();
   /** Private constructor, construction is not allowed. */
   TaskScheduler();
-  TaskScheduler(const TaskScheduler&); // No copy
+  TaskScheduler(const TaskScheduler&);  // No copy
   /** Stop all the workers. */
   void stopAllWorkers();
   /** Real (synchronized) work for postTaskExecution().
@@ -237,7 +227,8 @@ private:
       @param callbacks
    */
   void postTaskExecutionInternal(Task* task, std::vector<Task*>& callbacks);
-public:
+
+ public:
   // Remove a Data from the data tracking.
   void unregisterData(Data* d);
 };

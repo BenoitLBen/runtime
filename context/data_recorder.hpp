@@ -1,12 +1,12 @@
 #pragma once
-#include <chrono>
 #include <algorithm>
+#include <chrono>
 #include <deque>
-#include <string>
-#include <mutex>
 #include <fstream>
+#include <mutex>
+#include <string>
 
-template<typename T, typename U>
+template <typename T, typename U>
 std::ostream& operator<<(std::ostream& os, const std::pair<T, U>& p) {
   os << p.first << " " << p.second;
   return os;
@@ -22,7 +22,8 @@ std::ostream& operator<<(std::ostream& os, const std::pair<T, U>& p) {
 
     The time delta are relative to the first record() call.
  */
-template<typename T> class TimedDataRecorder {
+template <typename T>
+class TimedDataRecorder {
   typedef std::chrono::time_point<std::chrono::high_resolution_clock> TimePoint;
   typedef std::pair<TimePoint, T> DataPoint;
   typedef std::pair<TimePoint, std::string> Tag;
@@ -33,7 +34,7 @@ template<typename T> class TimedDataRecorder {
 
   TimePoint getOrigin() {
     if (data.size() == 0 && tags.size() == 0)
-        return std::chrono::high_resolution_clock::now();
+      return std::chrono::high_resolution_clock::now();
     bool hasData = data.size() > 0;
     bool hasTags = tags.size() > 0;
     auto origin = TimePoint();
@@ -47,7 +48,7 @@ template<typename T> class TimedDataRecorder {
     return origin;
   }
 
-public:
+ public:
   /** Add a data point to the record.
 
       \param value data point
@@ -81,16 +82,16 @@ public:
       The format is:
       timestamp_in_ns<delimiter>record\n
 
-      \param filename Name of the output file. The markers are put in filename.tags
-      \param delimiter field delimiter, space by default
+      \param filename Name of the output file. The markers are put in
+     filename.tags \param delimiter field delimiter, space by default
    */
-  void toFile(const char* filename, const char* delimiter=" ") {
+  void toFile(const char* filename, const char* delimiter = " ") {
     TimePoint origin = getOrigin();
     {
       std::ofstream file(filename);
       for (auto it : data) {
         size_t offsetNano =
-          std::chrono::duration_cast<nanos>((it.first - origin)).count();
+            std::chrono::duration_cast<nanos>((it.first - origin)).count();
         file << std::scientific << offsetNano << delimiter << it.second << "\n";
       }
     }
@@ -100,7 +101,7 @@ public:
       std::ofstream file(name.c_str());
       for (auto it : tags) {
         size_t offsetNano =
-          std::chrono::duration_cast<nanos>((it.first - origin)).count();
+            std::chrono::duration_cast<nanos>((it.first - origin)).count();
         file << std::scientific << offsetNano << delimiter << it.second << "\n";
       }
     }

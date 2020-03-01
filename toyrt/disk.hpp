@@ -1,8 +1,8 @@
 #pragma once
-#include <mutex>
 #include <condition_variable>
 #include <list>
 #include <map>
+#include <mutex>
 #include <thread>
 
 #include "task.hpp"
@@ -11,10 +11,9 @@ class DiskReadTask;
 class DiskWriteTask;
 class IoBackend;
 
-
 class IoThread {
-private:
-  enum RequestType {READ, WRITE, DELETE};
+ private:
+  enum RequestType { READ, WRITE, DELETE };
   struct Request {
     RequestType type;
     Data* d;
@@ -28,7 +27,7 @@ private:
   std::condition_variable sleepConditionIO;
   IoBackend* backend;
 
-public:
+ public:
   // thread id of the io thread
   std::thread::id myId;
 
@@ -41,13 +40,14 @@ public:
     return io;
   }
 
-private:
+ private:
   void processRequest(Request* r);
   IoThread();
   IoThread(const IoThread&) {}
   ~IoThread();
 };
 
-/*! \brief Put d in the position of being the next data evicted out of memory when room is needed.
-   */
+/*! \brief Put d in the position of being the next data evicted out of memory
+ * when room is needed.
+ */
 void flushToDisk(Data* d);

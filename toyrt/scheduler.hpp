@@ -1,9 +1,9 @@
 #pragma once
-#include <mutex>
 #include <deque>
+#include <mutex>
 
-#include "task.hpp"
 #include "context/data_recorder.hpp"
+#include "task.hpp"
 
 /** Generic Task scheduler.
 
@@ -12,14 +12,14 @@
     determined by the scheduler.
  */
 class Scheduler {
-protected:
+ protected:
   TimedDataRecorder<int>* recorder;
   int taskCount;
 
-public:
-  Scheduler(TimedDataRecorder<int>* _recorder = NULL) : recorder(_recorder),
-                                                        taskCount(0) {}
-  virtual ~Scheduler() {};
+ public:
+  Scheduler(TimedDataRecorder<int>* _recorder = NULL)
+      : recorder(_recorder), taskCount(0) {}
+  virtual ~Scheduler(){};
   /** Reset the scheduler. */
   virtual void clear() = 0;
   /** Push a task */
@@ -28,31 +28,31 @@ public:
   virtual bool tryPop(TaskPtr& task) = 0;
 };
 
-
 /** Simple FIFO scheduler.
  */
 class EagerScheduler : public Scheduler {
-private:
+ private:
   std::mutex mutex;
   std::deque<TaskPtr> q;
 
-public:
-  EagerScheduler(TimedDataRecorder<int>* recorder = NULL) : Scheduler(recorder) {}
+ public:
+  EagerScheduler(TimedDataRecorder<int>* recorder = NULL)
+      : Scheduler(recorder) {}
   void clear();
   void push(TaskPtr task);
   bool tryPop(TaskPtr& task);
 };
 
-
 /** Simple FIFO scheduler with priorities (several FIFOs).
  */
 class PriorityScheduler : public Scheduler {
-private:
+ private:
   std::deque<TaskPtr> q[PRIORITIES];
   std::mutex mutex;
 
-public:
-  PriorityScheduler(TimedDataRecorder<int>* recorder = NULL) : Scheduler(recorder) {}
+ public:
+  PriorityScheduler(TimedDataRecorder<int>* recorder = NULL)
+      : Scheduler(recorder) {}
   void clear();
   void push(TaskPtr task);
   bool tryPop(TaskPtr& task);

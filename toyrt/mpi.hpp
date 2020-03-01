@@ -2,28 +2,27 @@
 
 #include <mpi.h>
 
-#include <list>
 #include <cassert>
-#include <unordered_map>
-#include <map>
 #include <condition_variable>
 #include <deque>
+#include <list>
+#include <map>
 #include <set>
 #include <thread>
+#include <unordered_map>
 
-#include "task.hpp"
 #include "context/data_recorder.hpp"
-
+#include "task.hpp"
 
 /** Submit a MPI Send().
  */
 class MpiSendTask : public Task {
-public:
+ public:
   ssize_t count;
   int to;
   Data* d;
 
-public:
+ public:
   MpiSendTask(Data* d, int to) : Task("MpiSend"), count(0), to(to), d(d) {
     doPostExecution = false;
     isCallback = true;
@@ -31,23 +30,22 @@ public:
   void call();
 };
 
-
 /** Submit a MPI Recv().
  */
 class MpiRecvTask : public Task {
   friend class MpiRequestPool;
-private:
+
+ private:
   int from;
   Data* d;
 
-public:
+ public:
   MpiRecvTask(Data* d, int from) : Task("MpiRecv"), from(from), d(d) {
     doPostExecution = false;
     isCallback = true;
   }
   void call();
 };
-
 
 /** MPI Data cache.
 
@@ -56,17 +54,17 @@ public:
     It is not a singleton, even though only one instance exists at a time.
  */
 class MpiDataCache {
-private:
+ private:
   /** Rank in GlobalParallelSettings::getMpiComm() and size of it. */
   int rank, size;
   /** validOnNode[data][node] */
   std::unordered_map<Data*, std::vector<bool> > validOnNode;
   typedef std::unordered_map<Data*, std::vector<bool> >::iterator iterator_t;
 
-public:
+ public:
   bool enabled;
 
-public:
+ public:
   /** Create the cache tracking structures.
    */
   MpiDataCache();
@@ -77,7 +75,7 @@ public:
 
       @param d Data to remove
    */
-  void eraseData(Data* d) ;
+  void eraseData(Data* d);
   /** Note that some data was sent to a node.
 
       This function must be called on all nodes.
@@ -119,10 +117,9 @@ public:
    */
   bool isValidOnNode(Data* d, int node);
 
-private:
+ private:
   iterator_t find(Data* d);
 };
-
 
 /** MPI request pool and thread.
 
@@ -131,42 +128,38 @@ private:
     calls at a time.
 */
 class MpiRequestPool {
-private:
+ private:
   /** MPI requests types */
-  enum RequestType {SEND, RECV};
+  enum RequestType { SEND, RECV };
   /** MPI request caused by a task. */
   struct Request {
-    RequestType type; ///< request type
-    Task* task; ///< Task that caused it
+    RequestType type;  ///< request type
+    Task* task;        ///< Task that caused it
     Data* d;
-    void* ptr; ///< Pointer to the serialized data
-    size_t count; ///< Size of the serialized data
+    void* ptr;     ///< Pointer to the serialized data
+    size_t count;  ///< Size of the serialized data
     union {
       int from;
       int to;
     };
-    MPI_Request req; ///< MPI request to test
-    bool sizeReqDone; ///< Has the first request (size) already been done ?
+    MPI_Request req;   ///< MPI request to test
+    bool sizeReqDone;  ///< Has the first request (size) already been done ?
 
-    Request(RequestType type, Task* task) : type(type), task(task), ptr(NULL),
-                                            req(), sizeReqDone(false) {
+    Request(RequestType type, Task* task)
+        : type(type), task(task), ptr(NULL), req(), sizeReqDone(false) {
       switch (type) {
-      case SEND:
-        {
+        case SEND: {
           MpiSendTask* t = static_cast<MpiSendTask*>(task);
           d = t->d;
           count = t->count;
           to = t->to;
-        }
-        break;
-      case RECV:
-        {
+        } break;
+        case RECV: {
           MpiRecvTask* t = static_cast<MpiRecvTask*>(task);
           d = t->d;
           count = 0;
           from = t->from;
-        }
-        break;
+        } break;
       }
     }
   };
@@ -182,7 +175,7 @@ private:
 
   // Tracking of the in-flight requests.  These structures are only touched by
   // the MPI thread, thus requiring no synchonization.
-  typedef std::pair<int, int> RequestId; // to, tag
+  typedef std::pair<int, int> RequestId;  // to, tag
   /** Current send requests in \a detached */
   std::set<RequestId> sendsInFlight;
   /** Requests that are waiting for a send to complete before being issued. */
@@ -195,13 +188,13 @@ private:
   TimedDataRecorder<size_t> sentData;
   TimedDataRecorder<size_t> recvData;
 
-public:
+ public:
   /** Cache mechanism */
   MpiDataCache cache;
   // thread id of the communication thread
   std::thread::id myId;
 
-public:
+ public:
   /** Enqueue a send.
 
       This is called by \a MpiSendTask::call().
@@ -217,13 +210,13 @@ public:
    */
   void pushRecv(MpiRecvTask* task);
 
-private:
+ private:
   /** Process a completed request.
 
       @param it an iterator inside the \a detached list.
    */
-  std::list<Request*>::iterator
-  processCompletedRequest(std::list<Request*>::iterator it);
+  std::list<Request*>::iterator processCompletedRequest(
+      std::list<Request*>::iterator it);
   /** Test all the requests in the \a detached list.
 
       Calls \a processCompletedRequest() on completed requests.
@@ -233,7 +226,7 @@ private:
    */
   void pushDetachedRequest(Request* r);
 
-public:
+ public:
   /** MPI thread entry point.
    */
   void mainLoop();
@@ -252,9 +245,8 @@ public:
    */
   void displayDetachedRequests() const;
 
-private:
+ private:
   MpiRequestPool();
-  MpiRequestPool(const MpiRequestPool&) {} // No copy
+  MpiRequestPool(const MpiRequestPool&) {}  // No copy
   ~MpiRequestPool();
 };
-

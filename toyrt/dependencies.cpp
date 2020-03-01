@@ -1,16 +1,15 @@
 #include <cassert>
 #include <fstream>
-#include <set>
 #include <limits>
+#include <set>
 #include <sstream>
 
-#include "dependencies.hpp"
 #include "data.hpp"
-#include "mpi.hpp"
+#include "dependencies.hpp"
 #include "disk.hpp"
+#include "mpi.hpp"
 
 #include <mpi.h>
-
 
 /** Task used to add synchronization points.
 
@@ -22,41 +21,44 @@ class SyncTask : public Task {
       Warning: these data are not compatible with MPI and OOC.
    */
   class DummyData : public Data {
-  public:
-    DummyData() : Data() {
-      swappable = false;
-    }
-    ssize_t pack(void**) {return 0;}
+   public:
+    DummyData() : Data() { swappable = false; }
+    ssize_t pack(void**) { return 0; }
     void unpack(void*, ssize_t) {}
     void deallocate() {}
-    size_t size() {return 0;}
+    size_t size() { return 0; }
   };
 
-public:
+ public:
   Data* d;
 
   void call() {}
-  SyncTask() : Task("Sync"), d(new DummyData()) {
-    isCallback = true;
-  }
+  SyncTask() : Task("Sync"), d(new DummyData()) { isCallback = true; }
 };
 
-
 TaskScheduler::TaskScheduler()
-  : dataAccess(), deps(), availableTasks(nullptr), succ(),
-    postTaskExecutionMutex(), tasksLeft(0), progressCallback(),
-    percentageFrequency(-1), nextTaskCountWakeup(0), conditionMutex(),
-    progressCondition(), rank_(0), size_(0), mpiComm_(MPI_COMM_NULL),
-    maxMemorySize(std::numeric_limits<size_t>::max()), totalTasks(0),
-    verbose_(false) {
+    : dataAccess(),
+      deps(),
+      availableTasks(nullptr),
+      succ(),
+      postTaskExecutionMutex(),
+      tasksLeft(0),
+      progressCallback(),
+      percentageFrequency(-1),
+      nextTaskCountWakeup(0),
+      conditionMutex(),
+      progressCondition(),
+      rank_(0),
+      size_(0),
+      mpiComm_(MPI_COMM_NULL),
+      maxMemorySize(std::numeric_limits<size_t>::max()),
+      totalTasks(0),
+      verbose_(false) {
   // TODO: Allow choosing the scheduler.
   availableTasks.reset(new PriorityScheduler(&recorder));
 }
 
-
-static
-int commCountForRank(const toyRT_DepsArray & params,
-                     int rank) {
+static int commCountForRank(const toyRT_DepsArray& params, int rank) {
   MpiRequestPool& mpi = MpiRequestPool::getInstance();
   int comms = 0;
   for (const auto& p : params) {
@@ -73,9 +75,7 @@ int commCountForRank(const toyRT_DepsArray & params,
   return comms;
 }
 
-static
-int findExecuteeNode(const toyRT_DepsArray& params,
-                     int size) {
+static int findExecuteeNode(const toyRT_DepsArray& params, int size) {
   int node = ((Data*)params[0].first)->rank;
   for (const auto& p : params) {
     if (p.second == toyRT_WRITE) {
@@ -95,16 +95,14 @@ int findExecuteeNode(const toyRT_DepsArray& params,
   return node;
 }
 
-
-void TaskScheduler::insertMpiTask(Task* task,
-                                  const toyRT_DepsArray& params,
+void TaskScheduler::insertMpiTask(Task* task, const toyRT_DepsArray& params,
                                   int node, Priority priority) {
   insertMpiTask(std::unique_ptr<Task>(task), params, priority);
 }
 
 void TaskScheduler::insertMpiTask(std::unique_ptr<Task> task,
-                                  const toyRT_DepsArray& params,
-                                  int node, Priority priority) {
+                                  const toyRT_DepsArray& params, int node,
+                                  Priority priority) {
   assert(size_);
   if (size_ == 1) {
     insertTask(std::move(task), params, priority);
@@ -155,7 +153,7 @@ void TaskScheduler::insertMpiTask(std::unique_ptr<Task> task,
     if ((d->rank == me) && (node != me)) {
       if (!mpi.cache.isValidOnNode(d, node)) {
         insertTask(std::unique_ptr<Task>(new MpiSendTask(d, node)),
-                   {{d, toyRT_READ}} , priority);
+                   {{d, toyRT_READ}}, priority);
       }
     }
     // Else if we don't own the data and we are the node executing the task, we
@@ -174,10 +172,10 @@ void TaskScheduler::insertMpiTask(std::unique_ptr<Task> task,
     mpi.cache.sendData(d, d->rank, node);
   }
   // Avoid cluttering the dataAccess hash table.
-//  if (dummy) {
-//    unregisterData(dummy);
-//    delete dummy;
-//  }
+  //  if (dummy) {
+  //    unregisterData(dummy);
+  //    delete dummy;
+  //  }
   // We execute it.
   if (node == me) {
     insertTask(std::move(task), params, priority);
@@ -210,7 +208,6 @@ void TaskScheduler::insertMpiTask(std::unique_ptr<Task> task,
   }
 }
 
-
 void TaskScheduler::getDataOnNode(Data* d, int node) {
   // TODO: Integrate this with the MPI Communication cache, to note that the
   // data was received and to avoid useless comms.
@@ -226,9 +223,7 @@ void TaskScheduler::getDataOnNode(Data* d, int node) {
   }
 }
 
-
-void TaskScheduler::insertTask(Task* task,
-                               const toyRT_DepsArray& params,
+void TaskScheduler::insertTask(Task* task, const toyRT_DepsArray& params,
                                Priority priority) {
   insertTask(std::unique_ptr<Task>(task), params, priority);
 }
@@ -238,11 +233,11 @@ void TaskScheduler::insertTask(std::unique_ptr<Task> task,
                                Priority priority) {
   totalTasks++;
   task->priority = priority;
-  task->index = (int) tasks.size();
+  task->index = (int)tasks.size();
   assert(succ.size() == tasks.size());
   Task* task_ptr = task.get();
   tasks.push_back(std::move(task));
-  succ.push_back((TaskSuccessors) {0, std::deque<int>()});
+  succ.push_back((TaskSuccessors){0, std::deque<int>()});
 
   // To avoid duplicate dependencies
   std::set<std::pair<int, int> > localDeps;
@@ -260,25 +255,25 @@ void TaskScheduler::insertTask(std::unique_ptr<Task> task,
     }
 
     switch (mode) {
-    case toyRT_READ:
-      if (access.lastWrite != -1) {
-        // Add a dependencies between the write and the read
-        localDeps.insert(std::make_pair(access.lastWrite, task_ptr->index));
-      }
-      access.lastReads.push_back(task_ptr->index);
-      break;
-    case toyRT_WRITE:
-      if (access.lastWrite != -1) {
-        // Add a dependency between the two writes
-        localDeps.insert(std::make_pair(access.lastWrite, task_ptr->index));
-      }
-      for (auto t : access.lastReads) {
-        // Add a dependency between the reads and the write
-        localDeps.insert(std::make_pair(t, task_ptr->index));
-      }
-      access.lastReads.clear();
-      access.lastWrite = task_ptr->index;
-      break;
+      case toyRT_READ:
+        if (access.lastWrite != -1) {
+          // Add a dependencies between the write and the read
+          localDeps.insert(std::make_pair(access.lastWrite, task_ptr->index));
+        }
+        access.lastReads.push_back(task_ptr->index);
+        break;
+      case toyRT_WRITE:
+        if (access.lastWrite != -1) {
+          // Add a dependency between the two writes
+          localDeps.insert(std::make_pair(access.lastWrite, task_ptr->index));
+        }
+        for (auto t : access.lastReads) {
+          // Add a dependency between the reads and the write
+          localDeps.insert(std::make_pair(t, task_ptr->index));
+        }
+        access.lastReads.clear();
+        access.lastWrite = task_ptr->index;
+        break;
       case toyRT_READ_WRITE:
       case toyRT_REDUX:
       default:
@@ -286,20 +281,20 @@ void TaskScheduler::insertTask(std::unique_ptr<Task> task,
     }
   }
   for (auto& dep : localDeps) {
-    if (dep.first != dep.second) // Avoid to have a task depend on itself (may
-                                 // occur with duplicate dependencies in params)
-    deps.push_back(dep);
+    if (dep.first !=
+        dep.second)  // Avoid to have a task depend on itself (may
+                     // occur with duplicate dependencies in params)
+      deps.push_back(dep);
   }
 }
 
 void TaskScheduler::graphvizOutput(const char* filename) const {
   std::ofstream f(filename);
   static const int nColors = 14;
-  static const char* colors[] = {"green", "red", "blue", "gold",
-                                 "purple", "magenta", "cyan",
-                                 "deeppink", "darkslategray4",
-                                 "darksalmon", "gray66", "lavender",
-                                 "lightslateblue", "turquoise"};
+  static const char* colors[] = {
+      "green",   "red",      "blue",           "gold",           "purple",
+      "magenta", "cyan",     "deeppink",       "darkslategray4", "darksalmon",
+      "gray66",  "lavender", "lightslateblue", "turquoise"};
   f << "digraph tasks {\n";
   for (auto& dep : deps) {
     f << dep.first << " -> " << dep.second << ";\n";
@@ -310,9 +305,8 @@ void TaskScheduler::graphvizOutput(const char* filename) const {
     if (nameToColors.find(t->name) == nameToColors.end()) {
       nameToColors[t->name] = colorIndex++;
     }
-    f << t->index << " [label=\"" << t->name
-      << "\",style=filled,fillcolor=\""
-      << colors[nameToColors[t->name] % nColors]<< "\"];\n";
+    f << t->index << " [label=\"" << t->name << "\",style=filled,fillcolor=\""
+      << colors[nameToColors[t->name] % nColors] << "\"];\n";
   }
   f << "}" << std::endl;
 }
@@ -327,7 +321,7 @@ void TaskScheduler::prepare() {
     succ[dep.second].count++;
   }
 
-  for (int i = 0; i < (int) succ.size(); i++) {
+  for (int i = 0; i < (int)succ.size(); i++) {
     if (succ[i].count == 0) {
       startPrefetch(tasks[i].get());
       availableTasks->push(tasks[i].get());
@@ -344,7 +338,11 @@ void TaskScheduler::prepare() {
 
 void TaskScheduler::stopAllWorkers() {
   if (verbose_)
-    printf("%s TaskScheduler::stopAllWorkers (int) workerThreads.size()=%d (int) workers.size()=%d nbWorkers=%d\n", TaskScheduler::getInstance().getLocalization().c_str(), (int) workerThreads.size(), (int) workers.size(), nbWorkers);
+    printf(
+        "%s TaskScheduler::stopAllWorkers (int) workerThreads.size()=%d (int) "
+        "workers.size()=%d nbWorkers=%d\n",
+        TaskScheduler::getInstance().getLocalization().c_str(),
+        (int)workerThreads.size(), (int)workers.size(), nbWorkers);
   for (int i = 0; i < nbWorkers; i++) {
     availableTasks->push(NULL);
   }
@@ -354,7 +352,7 @@ std::string TaskScheduler::getLocalization() const {
   std::ostringstream convert;
   int i = currentId();
 
-  convert << "[proc " << rank_ << " thr " ;
+  convert << "[proc " << rank_ << " thr ";
   if (i == -1)
     convert << "MPI]";
   else if (i == -2)
@@ -429,13 +427,14 @@ void TaskScheduler::postTaskExecutionInternal(Task* task,
 
   tasksLeft--;
 
-  // Decrease "count" = the number of predecessors of all the successors, and push the ready tasks (count==0)
+  // Decrease "count" = the number of predecessors of all the successors, and
+  // push the ready tasks (count==0)
   for (int successor : succ[task->index].successors) {
     if (--succ[successor].count == 0) {
       Task* s = tasks[successor].get();
       startPrefetch(s);
-      if (s->isCallback) { // true only for: MpiSend, MpiRecv, Sync, Flush,
-                           // Deallocate
+      if (s->isCallback) {  // true only for: MpiSend, MpiRecv, Sync, Flush,
+                            // Deallocate
         callbacks.push_back(s);
       } else {
         availableTasks->push(s);
@@ -468,17 +467,18 @@ void TaskScheduler::postTaskExecutionInternal(Task* task,
 void TaskScheduler::notifyProgress() {
   if ((tasksLeft == nextTaskCountWakeup) || tasksLeft == 0) {
     std::unique_lock<std::mutex> lock(conditionMutex);
-    nextTaskCountWakeup -= std::max((int) ((percentageFrequency / 100.)
-                                           * totalTasks), 1);
+    nextTaskCountWakeup -=
+        std::max((int)((percentageFrequency / 100.) * totalTasks), 1);
     progressCondition.notify_one();
   }
 }
 
 void TaskScheduler::go(int n) {
   assert(n > 0);
-  nbWorkers=n ;
+  nbWorkers = n;
   if (verbose_)
-    printf("%s TaskScheduler::go nbWorkers=%d\n", TaskScheduler::getLocalization().c_str(), nbWorkers);
+    printf("%s TaskScheduler::go nbWorkers=%d\n",
+           TaskScheduler::getLocalization().c_str(), nbWorkers);
   recorder.tag("Prepare");
   prepare();
   recorder.tag("Go");
@@ -507,7 +507,6 @@ void TaskScheduler::go(int n) {
   }
 
   if (tasksLeft != 0) {
-
     workerThreads.clear();
     for (int i = 0; i < n; i++) {
       workerThreads.emplace_back(&Worker::mainLoop, std::ref(workers[i]));
@@ -556,13 +555,14 @@ void TaskScheduler::go(int n) {
   readDataRecorder.toFile("data_read.txt");
 }
 
-/*! \brief Returns a worker id (-3 for the master thread, -2 for IO thread, -1 for the MPI thread, 0 to N-1 for the workers)
-  */
+/*! \brief Returns a worker id (-3 for the master thread, -2 for IO thread, -1
+ * for the MPI thread, 0 to N-1 for the workers)
+ */
 int TaskScheduler::currentId() const {
   auto id = std::this_thread::get_id();
 
   // Generic worker threads
-  const int n = (int) workerIds.size();
+  const int n = (int)workerIds.size();
   for (int i = 0; i < n; i++) {
     if (id == workerIds[i]) {
       return i;
@@ -570,28 +570,28 @@ int TaskScheduler::currentId() const {
   }
 
   // MPI thread
-  if (id == MpiRequestPool::getInstance().myId)
-    return -1;
+  if (id == MpiRequestPool::getInstance().myId) return -1;
 
   // IO thread
-  if (id == IoThread::getInstance().myId)
-    return -2;
+  if (id == IoThread::getInstance().myId) return -2;
 
   // Master thread
   return -3;
 }
 
-/*! \brief Returns a worker id (-1 for the master thread, 0 for the IO thread, 1 for the MPI thread, >=2 for the workers)
+/*! \brief Returns a worker id (-1 for the master thread, 0 for the IO thread, 1
+   for the MPI thread, >=2 for the workers)
 
-    It will be called by the 'context' timer system by setting the pointer nodeIndexFunction in ToyRTEngine<T>::init().
+    It will be called by the 'context' timer system by setting the pointer
+   nodeIndexFunction in ToyRTEngine<T>::init().
   */
 int toyrtWorkerId() {
   TaskScheduler& s = TaskScheduler::getInstance();
-  return s.currentId()+2 ;
+  return s.currentId() + 2;
 }
 
 void TaskScheduler::dumpTimeline(const char* filename) const {
-  int64_t minTime = (((uint64_t) 1) << 63) - 1;
+  int64_t minTime = (((uint64_t)1) << 63) - 1;
   for (const Worker& w : workers) {
     minTime = std::min(w.timeline.minTime(), minTime);
   }
