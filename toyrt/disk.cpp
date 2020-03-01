@@ -1,36 +1,34 @@
-#include "config.h"
 #include "disk.hpp"
+#include "config.h"
 
 #include <cstdio>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#include <sys/stat.h>
 #include <cassert>
 #include <cstring>
-#include <sys/stat.h>
 
 #include "data.hpp"
 #include "dependencies.hpp"
 
-
 /** Abstract Base class for an IO backend.
  */
 class IoBackend {
-public:
-  IoBackend() {};
-  virtual ~IoBackend() {};
+ public:
+  IoBackend(){};
+  virtual ~IoBackend(){};
   virtual void writeData(Data* d) = 0;
   virtual void readData(Data* d) = 0;
   virtual void deleteData(Data* d) = 0;
 };
 
-
 namespace {
 class FlushTask : public Task {
-private:
+ private:
   Data* d;
 
-public:
+ public:
   FlushTask(Data* d) : Task("Flush"), d(d) {
     isCallback = true;
     noPrefetch = true;
@@ -41,20 +39,20 @@ public:
   }
 };
 
-}
+}  // namespace
 
 /** File IO Backend.
  */
 class FileIoBackend : public IoBackend {
-private:
+ private:
   int index;
   char* basedirName;
   std::map<Data*, char*> dataToFilename;
 
-private:
+ private:
   void createBaseDirectory(const char* directory) {
     const char* pattern = "/toyrt_ooc_XXXXXX";
-    basedirName = (char*) calloc(strlen(directory) + strlen(pattern) + 1, 1);
+    basedirName = (char*)calloc(strlen(directory) + strlen(pattern) + 1, 1);
     assert(basedirName);
     sprintf(basedirName, "%s%s", directory, pattern);
     assert(mkdtemp(basedirName));
@@ -69,37 +67,35 @@ private:
     dataToFilename.clear();
   }
 
-  enum FileAccessMode {READ, WRITE};
+  enum FileAccessMode { READ, WRITE };
   FILE* openFile(Data* d, FileAccessMode access) {
     FILE* f = NULL;
     switch (access) {
-    case READ:
-      assert(dataToFilename.find(d) != dataToFilename.end());
-      f = fopen(dataToFilename[d], "rb");
-      break;
-    case WRITE:
-      {
+      case READ:
+        assert(dataToFilename.find(d) != dataToFilename.end());
+        f = fopen(dataToFilename[d], "rb");
+        break;
+      case WRITE: {
         const int kFilesPerDir = 1000;
         auto it = dataToFilename.find(d);
         if (it == dataToFilename.end()) {
           if (index % kFilesPerDir == 0) {
-            char* dirName = (char*) calloc(strlen(basedirName) + 10, 1);
+            char* dirName = (char*)calloc(strlen(basedirName) + 10, 1);
             sprintf(dirName, "%s/%04d", basedirName, index / kFilesPerDir);
             int ierr = mkdir(dirName, S_IRWXU);
             assert(!ierr);
             free(dirName);
           }
-          char* filename = (char*) calloc(strlen(basedirName) + 30, 1);
+          char* filename = (char*)calloc(strlen(basedirName) + 30, 1);
           assert(filename);
-          sprintf(filename, "%s/%04d/%06d", basedirName,
-                  index / kFilesPerDir, index);
+          sprintf(filename, "%s/%04d/%06d", basedirName, index / kFilesPerDir,
+                  index);
           dataToFilename[d] = filename;
           index++;
         }
         f = fopen(dataToFilename[d], "wb");
         assert(f);
-      }
-      break;
+      } break;
     }
     return f;
   }
@@ -110,13 +106,11 @@ private:
     }
   }
 
-public:
+ public:
   FileIoBackend(const char* directory = "/tmp") : index(0) {
     createBaseDirectory(directory);
   }
-  ~FileIoBackend() {
-    cleanup();
-  }
+  ~FileIoBackend() { cleanup(); }
   void writeData(Data* d) {
     FILE* f = openFile(d, WRITE);
     assert(f);
@@ -147,7 +141,6 @@ public:
   }
 };
 
-
 void IoThread::pushSwap(Data* d) {
   std::lock_guard<std::mutex> lock(requestsMutex);
   assert(d->swappable);
@@ -173,28 +166,24 @@ void IoThread::pleaseStop() {
 
 void IoThread::processRequest(Request* r) {
   switch (r->type) {
-  case READ:
-    {
+    case READ: {
       // Prefetch
       backend->readData(r->d);
       r->d->swapped = false;
       r->d->dirty = false;
       r->d->prefetchInFlight = false;
-    }
-    break;
-  case WRITE:
-    {
+    } break;
+    case WRITE: {
       // Swap
       if (r->d->dirty) {
         backend->writeData(r->d);
         r->d->dirty = false;
       }
       r->d->deallocate();
-    }
-    break;
-  case DELETE:
-    backend->deleteData(r->d);
-    break;
+    } break;
+    case DELETE:
+      backend->deleteData(r->d);
+      break;
   }
 }
 
@@ -203,41 +192,37 @@ void IoThread::mainLoop() {
   {
     DECLARE_CONTEXT;
 
-  bool shouldStop = false;
-  bool shouldReallyStop = false;
-  while (!shouldReallyStop) {
-    std::unique_lock<std::mutex> lock(requestsMutex);
-    bool nothingToDo = requests.empty();
-    if (nothingToDo && (!shouldStop)) {
-      sleepConditionIO.wait(lock);
-    }
-    shouldReallyStop = shouldStop && nothingToDo;
-    while (!requests.empty()) {
-      Request* r = requests.back();
-      requests.pop_back();
-      lock.unlock();
-      if (!r) {
-        // The "stop" sentinel should be the last request
-        assert(requests.empty());
-        shouldStop = true;
-      } else {
-        processRequest(r);
+    bool shouldStop = false;
+    bool shouldReallyStop = false;
+    while (!shouldReallyStop) {
+      std::unique_lock<std::mutex> lock(requestsMutex);
+      bool nothingToDo = requests.empty();
+      if (nothingToDo && (!shouldStop)) {
+        sleepConditionIO.wait(lock);
       }
-      lock.lock();
+      shouldReallyStop = shouldStop && nothingToDo;
+      while (!requests.empty()) {
+        Request* r = requests.back();
+        requests.pop_back();
+        lock.unlock();
+        if (!r) {
+          // The "stop" sentinel should be the last request
+          assert(requests.empty());
+          shouldStop = true;
+        } else {
+          processRequest(r);
+        }
+        lock.lock();
+      }
+      lock.unlock();
     }
-    lock.unlock();
-  }
   }
   myId = static_cast<std::thread::id>(0);
 }
 
-IoThread::IoThread() {
-  backend = new FileIoBackend();
-}
+IoThread::IoThread() { backend = new FileIoBackend(); }
 
-IoThread::~IoThread() {
-  delete backend;
-}
+IoThread::~IoThread() { delete backend; }
 
 void flushToDisk(Data* d) {
   TaskScheduler::getInstance().insertTask(new FlushTask(d), {{d, toyRT_WRITE}});

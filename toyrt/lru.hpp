@@ -1,7 +1,7 @@
 #pragma once
 
-#include <unordered_map>
 #include <map>
+#include <unordered_map>
 
 /** Limited LRU (Least Recently Used) data structure.
 
@@ -17,16 +17,17 @@
     @warning this class is not thread-safe, don't do insertions / removal at the
     same time from different threads.
 */
-template<typename V> class Lru {
-private:
+template <typename V>
+class Lru {
+ private:
   int64_t current;
   std::unordered_map<V*, int64_t> toSequence;
   std::map<int64_t, V*> fromSequence;
 
-public:
+ public:
   Lru() : current(0), toSequence(), fromSequence() {}
 
-private:
+ private:
   void put(V* v, bool oldest) {
     // If the value is already here with a different sequence number, remove the
     // mapping with the old sequence number.
@@ -42,7 +43,7 @@ private:
     ++current;
   }
 
-public:
+ public:
   /** Insert or refresh a data in the cache.
 
       If a value is not already in the cache, add it as the most recently used
@@ -50,9 +51,7 @@ public:
 
       @param v the value to insert/refresh
    */
-  void put(V* v) {
-    put(v, false);
-  }
+  void put(V* v) { put(v, false); }
 
   /** Mark a data as the oldest one in the LRU.
 
@@ -61,9 +60,7 @@ public:
 
       @param v the value to insert/refresh
    */
-  void putAsOldest(V* v) {
-    put(v, true);
-  }
+  void putAsOldest(V* v) { put(v, true); }
   /** Remove a value from the LRU, if it exists.
 
       @param v value to remove
@@ -80,9 +77,7 @@ public:
   }
   /** Return true if v is in the LRU.
    */
-  bool contains(V* v) const {
-    return toSequence.find(v) != toSequence.end();
-  }
+  bool contains(V* v) const { return toSequence.find(v) != toSequence.end(); }
   /** Remove and return the oldest value, if one exists.
 
       @return the value if the LRU is not empty, NULL otherwise.

@@ -2,29 +2,29 @@
 #include "task.hpp"
 #include "task_timeline.hpp"
 
-#include <mutex>
-#include <memory>
-#include <vector>
-#include <thread>
 #include <cassert>
+#include <memory>
+#include <mutex>
+#include <thread>
+#include <vector>
 
 class TaskScheduler;
 class Scheduler;
 
 class Worker {
-private:
+ private:
   friend class TaskScheduler;
   Scheduler& q;
   TaskScheduler& scheduler;
   std::thread::id& myId;
   TaskTimeline timeline;
 
-public:
+ public:
   Worker(Scheduler& _q, TaskScheduler& _scheduler, std::thread::id& _myId)
-    : q(_q), scheduler(_scheduler), myId(_myId) {}
+      : q(_q), scheduler(_scheduler), myId(_myId) {}
   void mainLoop();
 
-private:
+ private:
   // No copy. Required to quiet icpc.
   Worker& operator=(const Worker&) {
     assert(false);
