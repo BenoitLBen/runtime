@@ -12,17 +12,6 @@
 #include "data.hpp"
 #include "dependencies.hpp"
 
-/** Abstract Base class for an IO backend.
- */
-class IoBackend {
- public:
-  IoBackend(){};
-  virtual ~IoBackend(){};
-  virtual void writeData(Data* d) = 0;
-  virtual void readData(Data* d) = 0;
-  virtual void deleteData(Data* d) = 0;
-};
-
 namespace {
 class FlushTask : public Task {
  private:
@@ -142,25 +131,23 @@ class FileIoBackend : public IoBackend {
 };
 
 void IoThread::pushSwap(Data* d) {
-  std::lock_guard<std::mutex> lock(requestsMutex);
   assert(d->swappable);
   assert(!d->swapped);
   d->swapped = true;
-  requests.push_front(new Request(WRITE, d));
-  sleepConditionIO.notify_one();
+  enqueueRequest(std::unique_ptr<Request>(new Request(WRITE, d)));
 }
 
 void IoThread::pushPrefetch(Data* d) {
-  std::lock_guard<std::mutex> lock(requestsMutex);
   assert(d->swappable);
   assert(d->swapped);
-  requests.push_front(new Request(READ, d));
-  sleepConditionIO.notify_one();
+  enqueueRequest(std::unique_ptr<Request>(new Request(READ, d)));
 }
 
-void IoThread::pleaseStop() {
+void IoThread::pleaseStop() { enqueueRequest(nullptr); }
+
+void IoThread::enqueueRequest(std::unique_ptr<Request> r) {
   std::lock_guard<std::mutex> lock(requestsMutex);
-  requests.push_front(NULL);
+  requests.push_front(std::move(r));
   sleepConditionIO.notify_one();
 }
 
@@ -202,7 +189,7 @@ void IoThread::mainLoop() {
       }
       shouldReallyStop = shouldStop && nothingToDo;
       while (!requests.empty()) {
-        Request* r = requests.back();
+        std::unique_ptr<Request> r = std::move(requests.back());
         requests.pop_back();
         lock.unlock();
         if (!r) {
@@ -210,7 +197,7 @@ void IoThread::mainLoop() {
           assert(requests.empty());
           shouldStop = true;
         } else {
-          processRequest(r);
+          processRequest(r.get());
         }
         lock.lock();
       }
@@ -220,10 +207,9 @@ void IoThread::mainLoop() {
   myId = static_cast<std::thread::id>(0);
 }
 
-IoThread::IoThread() { backend = new FileIoBackend(); }
-
-IoThread::~IoThread() { delete backend; }
+IoThread::IoThread() : backend(new FileIoBackend()) {}
 
 void flushToDisk(Data* d) {
-  TaskScheduler::getInstance().insertTask(new FlushTask(d), {{d, toyRT_WRITE}});
+  TaskScheduler::getInstance().insertTask(
+      std::unique_ptr<Task>(new FlushTask(d)), {{d, toyRT_WRITE}});
 }
