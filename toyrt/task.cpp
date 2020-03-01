@@ -53,6 +53,8 @@ bool Task::isReady() const {
   if (!noPrefetch) {
     for (auto& p : params) {
       Data* d = (Data*)p.first;
+      // TODO: This is racy, as there is no synchronization with the IO thread
+      // which performs the read. Should use atomic variables.
       if (ACCESS_ONCE(d->swapped)) {
         return false;
       }
