@@ -1,0 +1,5 @@
+*.pyc
+toyrt/doc/*.aux
+toyrt/doc/*.log
+toyrt/doc/*.toc
+
